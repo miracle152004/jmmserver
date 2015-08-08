@@ -9,6 +9,7 @@ using JMMServer.ImageDownload;
 using JMMContracts;
 using JMMServer.Repositories;
 using JMMServer.Providers.TraktTV;
+using JMMServer.Providers.TraktTV.Contracts;
 
 namespace JMMServer.Entities
 {
@@ -31,25 +32,25 @@ namespace JMMServer.Entities
 			}
 		}
 
-		public void Populate(TraktTVShow tvshow)
-		{
-			Overview = tvshow.overview;
-			Title = tvshow.title;
-			TraktID = tvshow.TraktID;
-			if (!string.IsNullOrEmpty(tvshow.tvdb_id)) TvDB_ID = int.Parse(tvshow.tvdb_id);
-			URL = tvshow.url;
-			Year = tvshow.year;
-		}
+        public void Populate(TraktV2ShowExtended tvshow)
+        {
+            Overview = tvshow.overview;
+            Title = tvshow.title;
+            TraktID = tvshow.ids.slug;
+            TvDB_ID = tvshow.ids.tvdb;
+            URL = tvshow.ShowURL;
+            Year = tvshow.year.ToString();
+        }
 
-		public void Populate(TraktTV_Show tvshow)
-		{
-			Overview = tvshow.overview;
-			Title = tvshow.title;
-			TraktID = tvshow.TraktID;
-			if (!string.IsNullOrEmpty(tvshow.tvdb_id)) TvDB_ID = int.Parse(tvshow.tvdb_id);
-			URL = tvshow.url;
-			Year = tvshow.year;
-		}
+        public void Populate(TraktV2Show tvshow)
+        {
+            Overview = tvshow.Overview;
+            Title = tvshow.Title;
+            TraktID = tvshow.ids.slug;
+            TvDB_ID = tvshow.ids.tvdb;
+            URL = tvshow.ShowURL;
+            Year = tvshow.Year.ToString();
+        }
 
 		public Contract_Trakt_Show ToContract()
 		{

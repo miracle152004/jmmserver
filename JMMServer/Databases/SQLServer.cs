@@ -175,6 +175,9 @@ namespace JMMServer.Databases
                 UpdateSchema_031(versionNumber);
                 UpdateSchema_032(versionNumber);
                 UpdateSchema_033(versionNumber);
+                UpdateSchema_034(versionNumber);
+                UpdateSchema_035(versionNumber);
+                UpdateSchema_036(versionNumber);
             }
 			catch (Exception ex)
 			{
@@ -1306,6 +1309,51 @@ namespace JMMServer.Databases
             DatabaseHelper.CreateInitialCustomTags();
         }
 
+        private static void UpdateSchema_034(int currentVersionNumber)
+        {
+            int thisVersion = 34;
+            if (currentVersionNumber >= thisVersion) return;
+
+            logger.Info("Updating schema to VERSION: {0}", thisVersion);
+
+            List<string> cmds = new List<string>();
+
+            cmds.Add("ALTER TABLE AniDB_Anime_Tag ADD Weight int NULL");
+
+            ExecuteSQLCommands(cmds);
+
+            UpdateDatabaseVersion(thisVersion);
+
+        }
+
+        private static void UpdateSchema_035(int currentVersionNumber)
+        {
+            int thisVersion = 35;
+            if (currentVersionNumber >= thisVersion) return;
+
+            logger.Info("Updating schema to VERSION: {0}", thisVersion);
+
+            UpdateDatabaseVersion(thisVersion);
+
+            // Now do the migration
+            DatabaseHelper.PopulateTagWeight();
+        }
+
+        private static void UpdateSchema_036(int currentVersionNumber)
+        {
+            int thisVersion = 36;
+            if (currentVersionNumber >= thisVersion) return;
+
+            logger.Info("Updating schema to VERSION: {0}", thisVersion);
+
+            List<string> cmds = new List<string>();
+
+            cmds.Add("ALTER TABLE Trakt_Episode ADD TraktID int NULL");
+
+            ExecuteSQLCommands(cmds);
+
+            UpdateDatabaseVersion(thisVersion);
+        }
 
 		private static void ExecuteSQLCommands(List<string> cmds)
 		{

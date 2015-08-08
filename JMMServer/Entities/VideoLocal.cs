@@ -196,7 +196,7 @@ namespace JMMServer.Entities
 		}
 
 		public void ToggleWatchedStatus(bool watched, bool updateOnline, DateTime? watchedDate, bool updateStats, bool updateStatsCache, int userID, 
-			bool scrobbleTrakt, bool updateWatchedDate)
+			bool syncTrakt, bool updateWatchedDate)
 		{
 			VideoLocalRepository repVids = new VideoLocalRepository();
 			AnimeEpisodeRepository repEpisodes = new AnimeEpisodeRepository();
@@ -314,10 +314,11 @@ namespace JMMServer.Entities
 							}
 						}
 
-                        if (scrobbleTrakt && ServerSettings.WebCache_Trakt_Send && !string.IsNullOrEmpty(ServerSettings.Trakt_Username) && !string.IsNullOrEmpty(ServerSettings.Trakt_Password))
+                        if (syncTrakt && ServerSettings.Trakt_IsEnabled && !string.IsNullOrEmpty(ServerSettings.Trakt_AuthToken))
 						{
-							CommandRequest_TraktShowScrobble cmdScrobble = new CommandRequest_TraktShowScrobble(ep.AnimeEpisodeID);
-							cmdScrobble.Save();
+							CommandRequest_TraktHistoryEpisode cmdSyncTrakt =
+                                new CommandRequest_TraktHistoryEpisode(ep.AnimeEpisodeID, TraktSyncAction.Add);
+							cmdSyncTrakt.Save();
 						}
 
 						if (!string.IsNullOrEmpty(ServerSettings.MAL_Username) && !string.IsNullOrEmpty(ServerSettings.MAL_Password))
@@ -365,8 +366,11 @@ namespace JMMServer.Entities
 							}
 						}
 
-						CommandRequest_TraktShowEpisodeUnseen cmdUnseen = new CommandRequest_TraktShowEpisodeUnseen(ep.AnimeEpisodeID);
-						cmdUnseen.Save();
+                        if (syncTrakt && ServerSettings.Trakt_IsEnabled && !string.IsNullOrEmpty(ServerSettings.Trakt_AuthToken))
+                        {
+                            CommandRequest_TraktHistoryEpisode cmdSyncTrakt = new CommandRequest_TraktHistoryEpisode(ep.AnimeEpisodeID, TraktSyncAction.Remove);
+                            cmdSyncTrakt.Save();
+                        }
 					}
 				}
 
@@ -382,12 +386,12 @@ namespace JMMServer.Entities
 			if (ser != null && updateStats)
 			{
 				// update all the groups above this series in the heirarchy
-				ser.UpdateStats(true, true, true);
+				ser.InmediateUpdateStats(true, true, true);
 				//ser.TopLevelAnimeGroup.UpdateStatsFromTopLevel(true, true, true);
 			}
 
-			if (ser != null && updateStatsCache)
-				StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
+			//if (ser != null && updateStatsCache)
+				//StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
 		}
 
 		public override string ToString()

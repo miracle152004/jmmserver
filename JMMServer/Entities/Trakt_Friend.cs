@@ -5,6 +5,7 @@ using System.Text;
 using System.IO;
 using JMMServer.ImageDownload;
 using JMMServer.Providers.TraktTV;
+using JMMServer.Providers.TraktTV.Contracts;
 
 namespace JMMServer.Entities
 {
@@ -37,30 +38,11 @@ namespace JMMServer.Entities
 			}
 		}
 
-		public void Populate(TraktTVUser user)
-		{
-			Username = user.username;
-			FullName = user.full_name;
-			Gender = user.gender;
-			Age = user.age;
-			Location = user.location;
-			About = user.about;
-			Joined = user.joined;
-			Avatar = user.avatar;
-			Url = user.url;
-		}
-
-		public void Populate(TraktTV_UserActivity user)
-		{
-			Username = user.username;
-			FullName = user.full_name;
-			Gender = user.gender;
-			Age = user.age;
-			Location = user.location;
-			About = user.about;
-			Joined = user.joined;
-			Avatar = user.avatar;
-			Url = user.url;
-		}
+        public void Populate(TraktV2User user)
+        {
+            Username = user.username;
+            FullName = user.name;
+            LastAvatarUpdate = DateTime.Now;
+        }
 	}
 }

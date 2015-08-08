@@ -25,6 +25,7 @@ using System.Collections;
 using JMMServer.Databases;
 using NHibernate;
 using JMMServer.Commands.AniDB;
+using JMMServer.Providers.TraktTV.Contracts;
 
 namespace JMMServer
 {
@@ -1420,16 +1421,6 @@ namespace JMMServer
 				CommandRequest_AddFileToMyList cmdAddFile = new CommandRequest_AddFileToMyList(vid.Hash);
 				cmdAddFile.Save();
 
-				// lets also try adding to the users trakt collecion by sync'ing the series
-				if (ser != null)
-				{
-                    if (ServerSettings.WebCache_Trakt_Send && !string.IsNullOrEmpty(ServerSettings.Trakt_Username))
-                    {
-                        CommandRequest_TraktSyncCollectionSeries cmdTrakt = new CommandRequest_TraktSyncCollectionSeries(ser.AnimeSeriesID, ser.GetAnime().MainTitle);
-                        cmdTrakt.Save();
-                    }
-				}
-
 				return "";
 
 			}
@@ -1496,16 +1487,6 @@ namespace JMMServer
 				{
 					grp.EpisodeAddedDate = DateTime.Now;
 					repGroups.Save(grp);
-				}
-
-				// lets also try adding to the users trakt collecion by sync'ing the series
-				if (ser != null)
-				{
-                    if (ServerSettings.WebCache_Trakt_Send && !string.IsNullOrEmpty(ServerSettings.Trakt_Username))
-                    {
-                        CommandRequest_TraktSyncCollectionSeries cmdTrakt = new CommandRequest_TraktSyncCollectionSeries(ser.AnimeSeriesID, ser.GetAnime().MainTitle);
-                        cmdTrakt.Save();
-                    }
 				}
 
 				return "";
@@ -1591,16 +1572,6 @@ namespace JMMServer
 				{
 					grp.EpisodeAddedDate = DateTime.Now;
 					repGroups.Save(grp);
-				}
-
-				// lets also try adding to the users trakt collecion by sync'ing the series
-				if (ser != null)
-				{
-                    if (ServerSettings.WebCache_Trakt_Send && !string.IsNullOrEmpty(ServerSettings.Trakt_Username))
-                    {
-                        CommandRequest_TraktSyncCollectionSeries cmdTrakt = new CommandRequest_TraktSyncCollectionSeries(ser.AnimeSeriesID, ser.GetAnime().MainTitle);
-                        cmdTrakt.Save();
-                    }
 				}
 
 			}
@@ -1694,7 +1665,7 @@ namespace JMMServer
 					CommandRequest_TvDBSearchAnime cmd = new CommandRequest_TvDBSearchAnime(anime.AnimeID, false);
 					cmd.Save(session);
 
-                    if (ServerSettings.WebCache_Trakt_Get)
+                    if (ServerSettings.Trakt_IsEnabled && !string.IsNullOrEmpty(ServerSettings.Trakt_AuthToken))
                     {
                         // check for Trakt associations
                         CommandRequest_TraktSearchAnime cmd2 = new CommandRequest_TraktSearchAnime(anime.AnimeID, false);
@@ -1870,6 +1841,26 @@ namespace JMMServer
 			}
 			return "";
 		}
+
+        public string SyncTraktSeries(int animeID)
+        {
+            try
+            {
+                AnimeSeriesRepository repSeries = new AnimeSeriesRepository();
+                AnimeSeries ser = repSeries.GetByAnimeID(animeID);
+                if (ser == null) return "Could not find Anime Series";
+
+                CommandRequest_TraktSyncCollectionSeries cmd = new CommandRequest_TraktSyncCollectionSeries(ser.AnimeSeriesID, ser.GetSeriesName());
+                cmd.Save();
+
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.ErrorException(ex.ToString(), ex);
+                return ex.Message;
+            }
+        }
 
         public string UpdateMovieDBData(int movieD)
         {
@@ -2170,7 +2161,6 @@ namespace JMMServer
 					Contract_AniDB_AnimeDetailed contractAnimeDetailed = new Contract_AniDB_AnimeDetailed();
 
 					contractAnimeDetailed.AnimeTitles = new List<Contract_AnimeTitle>();
-					contractAnimeDetailed.Categories = new List<Contract_AnimeCategory>();
 					contractAnimeDetailed.Tags = new List<Contract_AnimeTag>();
                     contractAnimeDetailed.CustomTags = new List<Contract_CustomTag>();
 					contractAnimeDetailed.UserVote = null;
@@ -2216,27 +2206,6 @@ namespace JMMServer
 				DateTime start = DateTime.Now;
 
 				AniDB_AnimeRepository repAnime = new AniDB_AnimeRepository();
-				
-
-				// build a dictionary of categories
-				AniDB_CategoryRepository repCats = new AniDB_CategoryRepository();
-				AniDB_Anime_CategoryRepository repAnimeCat = new AniDB_Anime_CategoryRepository();
-
-				List<AniDB_Category> allCatgeories = repCats.GetAll();
-				Dictionary<int, AniDB_Category> allCatgeoriesDict = new Dictionary<int, AniDB_Category>();
-				foreach (AniDB_Category cat in allCatgeories)
-					allCatgeoriesDict[cat.CategoryID] = cat;
-
-
-				List<AniDB_Anime_Category> allAnimeCatgeories = repAnimeCat.GetAll();
-				Dictionary<int, List<AniDB_Anime_Category>> allAnimeCatgeoriesDict = new Dictionary<int, List<AniDB_Anime_Category>>(); // 
-				foreach (AniDB_Anime_Category aniCat in allAnimeCatgeories)
-				{
-					if (!allAnimeCatgeoriesDict.ContainsKey(aniCat.AnimeID))
-						allAnimeCatgeoriesDict[aniCat.AnimeID] = new List<AniDB_Anime_Category>();
-
-					allAnimeCatgeoriesDict[aniCat.AnimeID].Add(aniCat);
-				}
 
 				// build a dictionary of titles
 				AniDB_Anime_TitleRepository repTitles = new AniDB_Anime_TitleRepository();
@@ -2319,8 +2288,7 @@ namespace JMMServer
 
 					Contract_AniDB_AnimeDetailed contract = new Contract_AniDB_AnimeDetailed();
 
-					contract.AnimeTitles = new List<Contract_AnimeTitle>();
-					contract.Categories = new List<Contract_AnimeCategory>();
+                    contract.AnimeTitles = new List<Contract_AnimeTitle>();
 					contract.Tags = new List<Contract_AnimeTag>();
                     contract.CustomTags = new List<Contract_CustomTag>();
 					contract.UserVote = null;
@@ -2400,28 +2368,6 @@ namespace JMMServer
 					}
 					
 					
-					if (allAnimeCatgeoriesDict.ContainsKey(anime.AnimeID))
-					{
-						List<AniDB_Anime_Category> aniCats = allAnimeCatgeoriesDict[anime.AnimeID];
-						foreach (AniDB_Anime_Category aniCat in aniCats)
-						{
-							if (allCatgeoriesDict.ContainsKey(aniCat.CategoryID))
-							{
-								AniDB_Category cat = allCatgeoriesDict[aniCat.CategoryID];
-
-								Contract_AnimeCategory ccat = new Contract_AnimeCategory();
-								ccat.CategoryDescription = cat.CategoryDescription;
-								ccat.CategoryID = cat.CategoryID;
-								ccat.CategoryName = cat.CategoryName;
-								ccat.IsHentai = cat.IsHentai;
-								ccat.ParentID = cat.ParentID;
-								ccat.Weighting = aniCat.Weighting;
-								contract.Categories.Add(ccat);
-								countElements++;
-							}
-						}
-					}
-					
 					if (allAnimeTagsDict.ContainsKey(anime.AnimeID))
 					{
 						List<AniDB_Anime_Tag> aniTags = allAnimeTagsDict[anime.AnimeID];
@@ -2432,11 +2378,11 @@ namespace JMMServer
 								AniDB_Tag tag = allTagsDict[aniTag.TagID];
 
 								Contract_AnimeTag ctag = new Contract_AnimeTag();
-								ctag.Approval = aniTag.Approval;
+                                ctag.Weight = aniTag.Weight;
 								ctag.GlobalSpoiler = tag.GlobalSpoiler;
 								ctag.LocalSpoiler = tag.LocalSpoiler;
-								ctag.Spoiler = tag.Spoiler;
-								ctag.TagCount = tag.TagCount;
+								//ctag.Spoiler = tag.Spoiler;
+								//ctag.TagCount = tag.TagCount;
 								ctag.TagDescription = tag.TagDescription;
 								ctag.TagID = tag.TagID;
 								ctag.TagName = tag.TagName;
@@ -2492,8 +2438,6 @@ namespace JMMServer
 			AnimeSeriesRepository repSeries = new AnimeSeriesRepository();
 			AniDB_AnimeRepository repAnime = new AniDB_AnimeRepository();
 			AniDB_Anime_TitleRepository repTitles = new AniDB_Anime_TitleRepository();
-			AniDB_Anime_CategoryRepository repAnimeCats = new AniDB_Anime_CategoryRepository();
-			AniDB_CategoryRepository repCats = new AniDB_CategoryRepository();
 			
             //TODO: Custom Tags: Do I need to add custom tags for searches
 
@@ -2705,31 +2649,31 @@ namespace JMMServer
 			}
 		}
 
-		public List<string> GetAllCategoryNames()
+        public List<string> GetAllTagNames()
 		{
-			AniDB_CategoryRepository repCats = new AniDB_CategoryRepository();
-			List<string> allCatNames = new List<string>();
+            AniDB_TagRepository repTags = new AniDB_TagRepository();
+			List<string> allTagNames = new List<string>();
 
 			try
 			{
 				DateTime start = DateTime.Now;
 
-				foreach (AniDB_Category cat in repCats.GetAll())
+                foreach (AniDB_Tag tag in repTags.GetAll())
 				{
-					allCatNames.Add(cat.CategoryName);
+                    allTagNames.Add(tag.TagName);
 				}
-				allCatNames.Sort();
+				allTagNames.Sort();
 
 
 				TimeSpan ts = DateTime.Now - start;
-				logger.Info("GetAllCategoryNames  in {0} ms", ts.TotalMilliseconds);
+                logger.Info("GetAllTagNames  in {0} ms", ts.TotalMilliseconds);
 			}
 			catch (Exception ex)
 			{
 				logger.ErrorException(ex.ToString(), ex);
 			}
 
-			return allCatNames;
+			return allTagNames;
 		}
 
 		public List<Contract_AnimeGroup> GetSubGroupsForGroup(int animeGroupID, int userID)
@@ -3308,8 +3252,10 @@ namespace JMMServer
 				ServerSettings.SeriesNameSource = (DataSourceType)contractIn.SeriesNameSource;
 
 				// Trakt
-				ServerSettings.Trakt_Username = contractIn.Trakt_Username;
-				ServerSettings.Trakt_Password = contractIn.Trakt_Password;
+                ServerSettings.Trakt_IsEnabled = contractIn.Trakt_IsEnabled;
+                ServerSettings.Trakt_AuthToken = contractIn.Trakt_AuthToken;
+                ServerSettings.Trakt_RefreshToken = contractIn.Trakt_RefreshToken;
+                ServerSettings.Trakt_TokenExpirationDate = contractIn.Trakt_TokenExpirationDate;
 				ServerSettings.Trakt_UpdateFrequency = (ScheduledUpdateFrequency)contractIn.Trakt_UpdateFrequency;
 				ServerSettings.Trakt_SyncFrequency = (ScheduledUpdateFrequency)contractIn.Trakt_SyncFrequency;
 				ServerSettings.Trakt_DownloadEpisodes = contractIn.Trakt_DownloadEpisodes;
@@ -3393,8 +3339,8 @@ namespace JMMServer
 				}
 
 				ep.ToggleWatchedStatus(watchedStatus, true, DateTime.Now, false, false, userID, true);
-				ep.GetAnimeSeries().UpdateStats(true, false, true);
-				StatsCache.Instance.UpdateUsingSeries(ep.GetAnimeSeries().AnimeSeriesID);
+				ep.GetAnimeSeries().InmediateUpdateStats(true, false, true);
+				//StatsCache.Instance.UpdateUsingSeries(ep.GetAnimeSeries().AnimeSeriesID);
 
 				// refresh from db
 				ep = repEps.GetByID(animeEpisodeID);
@@ -3450,8 +3396,8 @@ namespace JMMServer
 				// now update the stats
 				if (ser != null)
 				{
-					ser.UpdateStats(true, true, true);
-					StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
+					ser.InmediateUpdateStats(true, true, true);
+					//StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
 				}
 				return "";
 			}
@@ -3939,15 +3885,15 @@ namespace JMMServer
 			return log;
 		}
 
-		public string TestTraktLogin()
+        public string EnterTraktPIN(string pin)
 		{
 			try
 			{
-				return TraktTVHelper.TestUserLogin();
+				return TraktTVHelper.EnterTraktPIN(pin);
 			}
 			catch (Exception ex)
 			{
-				logger.ErrorException("Error in TestTraktLogin: " + ex.ToString(), ex);
+                logger.ErrorException("Error in EnterTraktPIN: " + ex.ToString(), ex);
 				return ex.Message;
 			}
 		}
@@ -3968,22 +3914,10 @@ namespace JMMServer
 			}
 		}
 
-		public bool CreateTraktAccount(string username, string password, string email, ref string returnMessage)
-		{
-			try
-			{
-				return TraktTVHelper.CreateAccount(username, password, email, ref returnMessage);
-			}
-			catch (Exception ex)
-			{
-				logger.ErrorException("Error in TestTraktLogin: " + ex.ToString(), ex);
-				returnMessage = ex.Message;
-				return false;
-			}
-		}
-
 		public bool TraktFriendRequestDeny(string friendUsername, ref string returnMessage)
 		{
+            return false;
+            /*
 			try
 			{
 				return TraktTVHelper.FriendRequestDeny(friendUsername, ref returnMessage);
@@ -3993,11 +3927,13 @@ namespace JMMServer
 				logger.ErrorException("Error in TraktFriendRequestDeny: " + ex.ToString(), ex);
 				returnMessage = ex.Message;
 				return false;
-			}
+			}*/
 		}
 
 		public bool TraktFriendRequestApprove(string friendUsername, ref string returnMessage)
 		{
+            return false;
+            /*
 			try
 			{
 				return TraktTVHelper.FriendRequestApprove(friendUsername, ref returnMessage);
@@ -4007,7 +3943,7 @@ namespace JMMServer
 				logger.ErrorException("Error in TraktFriendRequestDeny: " + ex.ToString(), ex);
 				returnMessage = ex.Message;
 				return false;
-			}
+			}*/
 		}
 
 		/// <summary>
@@ -4232,6 +4168,8 @@ namespace JMMServer
 				if (animeEpisodes.Count > 0)
 					ser = animeEpisodes[0].GetAnimeSeries();
 
+                
+
 				CommandRequest_DeleteFileFromMyList cmdDel = new CommandRequest_DeleteFileFromMyList(vid.Hash, vid.FileSize);
 				cmdDel.Save();
 
@@ -4240,9 +4178,11 @@ namespace JMMServer
 				if (ser != null)
 				{
 					ser.UpdateStats(true, true, true);
-					StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
+					//StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
 				}
-				
+
+                // For deletion of files from Trakt, we will rely on the Daily sync
+               
 
 				return "";
 			}
@@ -5050,7 +4990,7 @@ namespace JMMServer
                     {
                         result.CrossRef_AniDB_Trakt.Add(xref.ToContract());
 
-                        Trakt_Show show = repTrakt.GetByTraktID(session, xref.TraktID);
+                        Trakt_Show show = repTrakt.GetByTraktSlug(session, xref.TraktID);
                         if (show != null)
                         {
                             result.TraktShows.Add(show.ToContract());
@@ -5819,7 +5759,7 @@ namespace JMMServer
             try
             {
                 Trakt_ShowRepository repShows = new Trakt_ShowRepository();
-                Trakt_Show show = repShows.GetByTraktID(traktID);
+                Trakt_Show show = repShows.GetByTraktSlug(traktID);
                 if (show != null)
                     allEps = GetAllTraktEpisodes(show.Trakt_ShowID);
 
@@ -5917,9 +5857,9 @@ namespace JMMServer
 			List<Contract_TraktTVShowResponse> results = new List<Contract_TraktTVShowResponse>();
 			try
 			{
-				List<TraktTVShow> traktResults = TraktTVHelper.SearchShow(criteria);
+                List<TraktV2SearchShowResult> traktResults = TraktTVHelper.SearchShowV2(criteria);
 
-				foreach (TraktTVShow res in traktResults)
+                foreach (TraktV2SearchShowResult res in traktResults)
 					results.Add(res.ToContract());
 
 				return results;
@@ -5931,7 +5871,9 @@ namespace JMMServer
 			}
 		}
 
-		public List<Contract_MALAnimeResponse> SearchMAL(string criteria)
+        
+
+        public List<Contract_MALAnimeResponse> SearchMAL(string criteria)
 		{
 			List<Contract_MALAnimeResponse> results = new List<Contract_MALAnimeResponse>();
 			try
@@ -6135,10 +6077,10 @@ namespace JMMServer
 			try
 			{
 				// refresh show info including season numbers from trakt
-				TraktTVShow tvshow = TraktTVHelper.GetShowInfo(traktID);
+				TraktV2ShowExtended tvshow = TraktTVHelper.GetShowInfoV2(traktID);
 
 				Trakt_ShowRepository repShows = new Trakt_ShowRepository();
-				Trakt_Show show = repShows.GetByTraktID(traktID);
+				Trakt_Show show = repShows.GetByTraktSlug(traktID);
 				if (show == null) return seasonNumbers;
 
 				foreach (Trakt_Season season in show.Seasons)
@@ -7978,6 +7920,10 @@ namespace JMMServer
 			{
 				CommandRequest_DeleteFileFromMyList cmd = new CommandRequest_DeleteFileFromMyList(missingFile.FileID);
 				cmd.Save();
+
+                // For deletion of files from Trakt, we will rely on the Daily sync
+                // lets also try removing from the users trakt collecion
+                
 			}
 		}
 
@@ -8222,10 +8168,10 @@ namespace JMMServer
 			{
 				Trakt_FriendRepository repFriends = new Trakt_FriendRepository();
 
-				List<TraktTV_ShoutGet> shoutsTemp = TraktTVHelper.GetShowShouts(animeID);
+                List<TraktV2Comment> shoutsTemp = TraktTVHelper.GetShowShoutsV2(animeID);
 				if (shoutsTemp == null || shoutsTemp.Count == 0) return shouts;
 
-				foreach (TraktTV_ShoutGet sht in shoutsTemp)
+                foreach (TraktV2Comment sht in shoutsTemp)
 				{
 					Contract_Trakt_ShoutUser shout = new Contract_Trakt_ShoutUser();
 
@@ -8237,23 +8183,19 @@ namespace JMMServer
 						shout.User.Trakt_FriendID = 0;
 					else
 						shout.User.Trakt_FriendID = traktFriend.Trakt_FriendID;
-					shout.User.Username = sht.user.username;
-					shout.User.Full_name = sht.user.full_name;
-					shout.User.Gender = sht.user.gender;
-					shout.User.Age = sht.user.age;
-					shout.User.Location = sht.user.location;
-					shout.User.About = sht.user.about;
-					shout.User.Joined = sht.user.joined;
-					shout.User.Avatar = sht.user.avatar;
-					shout.User.Url = sht.user.url;
-					shout.User.JoinedDate = Utils.GetAniDBDateAsDate(sht.user.joined);
+
+                    shout.User.Username = sht.user.username;
+                    shout.User.Full_name = sht.user.name;
 
 					// shout details
 					shout.Shout = new Contract_Trakt_Shout();
 					shout.Shout.ShoutType = (int)TraktActivityType.Show; // episode or show
-					shout.Shout.Text = sht.shout;
+                    shout.Shout.Text = sht.comment;
 					shout.Shout.Spoiler = sht.spoiler;
-					shout.Shout.Inserted = Utils.GetAniDBDateAsDate(sht.inserted);
+                    shout.Shout.Inserted = sht.CreatedAtDate;
+
+                    // urls
+                    shout.Shout.Comment_Url = string.Format(TraktURIs.WebsiteComment, sht.id);
 
 					shouts.Add(shout);
 				}
@@ -8263,210 +8205,6 @@ namespace JMMServer
 				logger.ErrorException(ex.ToString(), ex);
 			}
 			return shouts;
-		}
-
-		public void RefreshTraktFriendInfo()
-		{
-			MainWindow.UpdateTraktFriendInfo(true);
-		}
-
-		public Contract_Trakt_Activity GetTraktFriendInfo(int maxResults, bool animeOnly, bool getShouts, bool getScrobbles)
-		{
-            CrossRef_AniDB_TraktV2Repository repXrefTrakt = new CrossRef_AniDB_TraktV2Repository();
-			CrossRef_AniDB_TvDBV2Repository repXrefTvDB = new CrossRef_AniDB_TvDBV2Repository();
-			AniDB_AnimeRepository repAnime = new AniDB_AnimeRepository();
-			AnimeSeriesRepository repSeries = new AnimeSeriesRepository();
-			Trakt_FriendRepository repFriends = new Trakt_FriendRepository();
-			Trakt_EpisodeRepository repEpisodes = new Trakt_EpisodeRepository();
-			Trakt_ShowRepository repShows = new Trakt_ShowRepository();
-
-			Contract_Trakt_Activity contract = new Contract_Trakt_Activity();
-			contract.HasTraktAccount = true;
-			if (string.IsNullOrEmpty(ServerSettings.Trakt_Username) || string.IsNullOrEmpty(ServerSettings.Trakt_Password))
-				contract.HasTraktAccount = false;
-
-			contract.TraktFriends = new List<Contract_Trakt_Friend>();
-			contract.TraktFriendRequests = new List<Contract_Trakt_FriendFrequest>();
-			contract.TraktFriendActivity = new List<Contract_Trakt_FriendActivity>();
-
-			try
-			{
-				int i = 1;
-				foreach (TraktTV_Activity act in StatsCache.Instance.TraktFriendActivityInfo)
-				{
-					
-
-					if (i >= maxResults) break;
-
-					if (act.ActivityAction == (int)TraktActivityAction.Scrobble && !getScrobbles) continue;
-					if (act.ActivityAction == (int)TraktActivityAction.Shout && !getShouts) continue;
-
-					Contract_Trakt_FriendActivity contractAct = new Contract_Trakt_FriendActivity();
-
-					if (act.show == null) continue;
-
-					// find the anime and series based on the trakt id
-					int? animeID = null;
-					CrossRef_AniDB_TraktV2 xref = null;
-                    if (act.episode != null)
-                    {
-                        List <CrossRef_AniDB_TraktV2> xrefs = repXrefTrakt.GetByTraktIDAndSeason(act.show.TraktID, int.Parse(act.episode.season));
-                        if (xrefs.Count > 0) xref = xrefs[0];
-                    }
-
-					if (xref != null)
-						animeID = xref.AnimeID;
-					else
-					{
-						// try a rough match
-						// since we won't always do an exact match by season
-						List<CrossRef_AniDB_TraktV2> traktXrefs = repXrefTrakt.GetByTraktID(act.show.TraktID);
-						if (traktXrefs.Count > 0)
-							animeID = traktXrefs[0].AnimeID;
-					}
-
-					// skip this activity if we can't find the anime and the user only wants to see anime related stuff
-					if (!animeID.HasValue && animeOnly)
-					{
-						//TODO
-						// however let's try and look it up on the web cache to see if it is an anime
-						// this just might be an anime that user doesn't have in their local database
-						continue;
-					}
-
-					
-
-					// activity details
-					contractAct.ActivityAction = act.ActivityAction;
-					contractAct.ActivityType = act.ActivityType;
-					contractAct.ActivityDate = Utils.GetAniDBDateAsDate(act.timestamp);
-					if (act.elapsed != null)
-					{
-						contractAct.Elapsed = act.elapsed.full;
-						contractAct.ElapsedShort = act.elapsed.shortElapsed;
-					}
-
-					Trakt_Friend traktFriend = repFriends.GetByUsername(act.user.username);
-					if (traktFriend == null) return null;
-					
-					// user details
-					contractAct.User = new Contract_Trakt_User();
-					contractAct.User.Trakt_FriendID = traktFriend.Trakt_FriendID;
-					contractAct.User.Username = act.user.username;
-					contractAct.User.Full_name = act.user.full_name;
-					contractAct.User.Gender = act.user.gender;
-					contractAct.User.Age = act.user.age;
-					contractAct.User.Location = act.user.location;
-					contractAct.User.About = act.user.about;
-					contractAct.User.Joined = act.user.joined;
-					contractAct.User.Avatar = act.user.avatar;
-					contractAct.User.Url = act.user.url;
-					contractAct.User.JoinedDate = Utils.GetAniDBDateAsDate(act.user.joined);
-
-					// episode details
-					if (act.ActivityAction == (int)TraktActivityAction.Scrobble && act.episode != null) // scrobble episode
-					{
-						contractAct.Episode = new Contract_Trakt_WatchedEpisode();
-						contractAct.Episode.AnimeSeriesID = null;
-
-						contractAct.Episode.Episode_Number = act.episode.number;
-						contractAct.Episode.Episode_Overview = act.episode.overview;
-						contractAct.Episode.Episode_Season = act.episode.season;
-						contractAct.Episode.Episode_Title = act.episode.title;
-						contractAct.Episode.Episode_Url = act.episode.url;
-						contractAct.Episode.Trakt_EpisodeID = -1;
-						
-
-						if (act.episode.images != null)
-							contractAct.Episode.Episode_Screenshot = act.episode.images.screen;
-
-						if (act.show != null)
-						{
-							contractAct.Episode.TraktShow = act.show.ToContract();
-
-							Trakt_Show show = repShows.GetByTraktID(act.show.TraktID);
-							if (show != null)
-							{
-								Trakt_Episode episode = repEpisodes.GetByShowIDSeasonAndEpisode(show.Trakt_ShowID, int.Parse(act.episode.season), int.Parse(act.episode.number));
-								if (episode != null)
-									contractAct.Episode.Trakt_EpisodeID = episode.Trakt_EpisodeID;
-							}
-
-							if (animeID.HasValue)
-							{
-
-								AnimeSeries ser = repSeries.GetByAnimeID(animeID.Value);
-								if (ser != null)
-									contractAct.Episode.AnimeSeriesID = ser.AnimeSeriesID;
-
-								AniDB_Anime anime = repAnime.GetByAnimeID(animeID.Value);
-								if (anime != null)
-									contractAct.Episode.Anime = anime.ToContract(true, null);
-
-							}
-						}
-					}
-
-					// shout details
-					if (act.ActivityAction == (int)TraktActivityAction.Shout && act.shout != null) // shout
-					{
-						contractAct.Shout = new Contract_Trakt_Shout();
-
-						contractAct.Shout.ShoutType = act.ActivityType; // episode or show
-						contractAct.Shout.Text = act.shout.text;
-						contractAct.Shout.Spoiler = act.shout.spoiler;
-
-						contractAct.Shout.AnimeSeriesID = null;
-
-						if (act.ActivityType == 1 && act.episode != null) // episode
-						{
-							contractAct.Shout.Episode_Number = act.episode.number;
-							contractAct.Shout.Episode_Overview = act.episode.overview;
-							contractAct.Shout.Episode_Season = act.episode.season;
-							contractAct.Shout.Episode_Title = act.episode.title;
-							contractAct.Shout.Episode_Url = act.episode.url;
-
-							if (act.episode.images != null)
-								contractAct.Shout.Episode_Screenshot = act.episode.images.screen;
-						}
-
-						if (act.show != null) // episode or show
-						{
-							if (act.episode == null)
-								contractAct.Shout.Episode_Screenshot = act.show.images.fanart;
-
-							contractAct.Shout.TraktShow = act.show.ToContract();
-
-							if (animeID.HasValue)
-							{
-
-								AnimeSeries ser = repSeries.GetByAnimeID(animeID.Value);
-								if (ser != null)
-									contractAct.Shout.AnimeSeriesID = ser.AnimeSeriesID;
-
-								AniDB_Anime anime = repAnime.GetByAnimeID(animeID.Value);
-								if (anime != null)
-									contractAct.Shout.Anime = anime.ToContract(true, null);
-
-							}
-						}
-					}
-
-					contract.TraktFriendActivity.Add(contractAct);
-					i++;
-				}
-
-				foreach (TraktTVFriendRequest req in StatsCache.Instance.TraktFriendRequests)
-				{
-					Contract_Trakt_FriendFrequest contractReq = req.ToContract();
-					contract.TraktFriendRequests.Add(contractReq);
-				}
-			}
-			catch (Exception ex)
-			{
-				logger.ErrorException(ex.ToString(), ex);
-			}
-			return contract;
 		}
 
 		public Contract_AniDBVote GetUserVote(int animeID)

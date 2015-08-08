@@ -291,7 +291,7 @@ namespace JMMServer.Commands
 			{
 				// update all the groups above this series in the heirarchy
 				ser.UpdateStats(true, true, true);
-				StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
+				//StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
 			}
 			
 
@@ -300,23 +300,6 @@ namespace JMMServer.Commands
 			{
 				CommandRequest_AddFileToMyList cmd = new CommandRequest_AddFileToMyList(vidLocal.ED2KHash);
 				cmd.Save();
-			}
-
-			// lets also try adding to the users trakt collecion by sync'ing the series
-			if (ser != null)
-			{
-                if (ServerSettings.WebCache_Trakt_Send && !string.IsNullOrEmpty(ServerSettings.Trakt_Username))
-                {
-                    CommandRequest_TraktSyncCollectionSeries cmdTrakt = new CommandRequest_TraktSyncCollectionSeries(ser.AnimeSeriesID, ser.GetAnime().MainTitle);
-                    cmdTrakt.Save();
-                }
-			}
-
-			// sync the series on MAL
-			if (ser != null)
-			{
-				CommandRequest_MALUpdatedWatchedStatus cmdMAL = new CommandRequest_MALUpdatedWatchedStatus(ser.AniDB_ID);
-				cmdMAL.Save();
 			}
 		}
 

@@ -211,7 +211,7 @@ namespace JMMContracts
 		string DeleteGroupFilter(int groupFilterID);
 
 		[OperationContract]
-		List<string> GetAllCategoryNames();
+        List<string> GetAllTagNames();
 
 		[OperationContract]
 		void ScanFolder(int importFolderID);
@@ -364,7 +364,7 @@ namespace JMMContracts
 		string DeleteUser(int userID);
 
 		[OperationContract]
-		string TestTraktLogin();
+		string EnterTraktPIN(string pin);
 
 		[OperationContract]
 		List<Contract_Trakt_ImageFanart> GetAllTraktFanart(int? traktShowID);
@@ -404,6 +404,9 @@ namespace JMMContracts
 
 		[OperationContract]
 		string UpdateTraktData(string traktD);
+
+        [OperationContract]
+        string SyncTraktSeries(int animeID);
 
         [OperationContract]
         string UpdateMovieDBData(int movieD);
@@ -469,9 +472,6 @@ namespace JMMContracts
 		void IgnoreAnime(int animeID, int ignoreType, int userID);
 
 		[OperationContract]
-		Contract_Trakt_Activity GetTraktFriendInfo(int maxResults, bool animeOnly, bool getShouts, bool getScrobbles);
-
-		[OperationContract]
 		Contract_AniDBVote GetUserVote(int animeID);
 
 		[OperationContract]
@@ -499,9 +499,6 @@ namespace JMMContracts
 		void RefreshAllMediaInfo();
 
 		[OperationContract]
-		bool CreateTraktAccount(string username, string password, string email, ref string returnMessage);
-
-		[OperationContract]
 		bool TraktFriendRequestDeny(string friendUsername, ref string returnMessage);
 
 		[OperationContract]
@@ -515,9 +512,6 @@ namespace JMMContracts
 
 		[OperationContract]
         bool PostShoutShow(string traktID, string shoutText, bool isSpoiler, ref string returnMessage);
-
-		[OperationContract]
-		void RefreshTraktFriendInfo();
 
 		[OperationContract]
 		Contract_AnimeGroup GetTopLevelGroupForSeries(int animeSeriesID, int userID);

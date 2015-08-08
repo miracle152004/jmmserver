@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -241,9 +241,9 @@
     <Compile Include="Commands\MAL\CommandRequest_MALSearchAnime.cs" />
     <Compile Include="Commands\MAL\CommandRequest_MALUpdatedWatchedStatus.cs" />
     <Compile Include="Commands\MAL\CommandRequest_MALUploadStatusToMAL.cs" />
+    <Compile Include="Commands\Trakt\CommandRequest_TraktCollectionEpisode.cs" />
     <Compile Include="Commands\Trakt\CommandRequest_TraktSearchAnime.cs" />
-    <Compile Include="Commands\Trakt\CommandRequest_TraktShowEpisodeUnseen.cs" />
-    <Compile Include="Commands\Trakt\CommandRequest_TraktShowScrobble.cs" />
+    <Compile Include="Commands\Trakt\CommandRequest_TraktHistoryEpisode.cs" />
     <Compile Include="Commands\Trakt\CommandRequest_TraktSyncCollection.cs" />
     <Compile Include="Commands\Trakt\CommandRequest_TraktSyncCollectionSeries.cs" />
     <Compile Include="Commands\Trakt\CommandRequest_TraktUpdateInfoAndImages.cs" />
@@ -336,21 +336,51 @@
     <Compile Include="Providers\MyAnimeList\MALClasses\SearchResult.cs" />
     <Compile Include="Providers\MyAnimeList\MALClasses\VerifyCredentials.cs" />
     <Compile Include="Providers\MyAnimeList\MALHelper.cs" />
-    <Compile Include="Providers\TraktTV\TraktActivityContainer.cs" />
-    <Compile Include="Providers\TraktTV\TraktDetailsContainer.cs" />
-    <Compile Include="Providers\TraktTV\TraktSummaryContainer.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_ShoutShow.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_Activity.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_ActivitySummary.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_Elapsed.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_Episode.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_Ratings.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_Shout.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_ShoutGet.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_Show.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_Timestamps.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_UserActivity.cs" />
-    <Compile Include="Providers\TraktTV\TraktTV_When.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2SyncCollectionEpisodesByNumber.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2SyncWatchedEpisodesByNumber.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Temp.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Auth\TraktAuthPIN.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Auth\TraktAuthToken.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Airs.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Banner.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Clearart.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2CollectedEpisode.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2CollectedSeason.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Comment.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2CommentShowPost.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Episode.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2EpisodeIds.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2EpisodeImage.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2EpisodePost.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2EpisodeScreenshot.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Fanart.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Follower.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Ids.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Images.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2ImagesExtended.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Logo.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Poster.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Search\TraktV2SearchShowResult.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Search\TraktV2SearchTvDBIDShowResult.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Season.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2SeasonIds.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Show.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2ShowCollectedResult.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2ShowExtended.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2ShowIdsPost.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2ShowPost.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2ShowWatchedResult.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2SyncCollectionEpisodes.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Thumb.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2User.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2UserEpisodeHistory.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2WatchedEpisode.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Sync\TraktV2WatchedSeason.cs" />
+    <Compile Include="Providers\TraktTV\TraktConstants.cs" />
+    <Compile Include="Providers\TraktTV\TraktURIs.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\Auth\TraktV2RefreshToken.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktDetailsContainer.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktSummaryContainer.cs" />
     <Compile Include="Providers\TvDB\TvDBDetails.cs" />
     <Compile Include="Providers\TvDB\TvDBSummary.cs" />
     <Compile Include="Repositories\AniDB_MylistStatsRepository.cs" />
@@ -373,7 +403,6 @@
     <Compile Include="Databases\SQLite.cs" />
     <Compile Include="Databases\SQLServer.cs" />
     <Compile Include="Entities\AniDB_Anime.cs" />
-    <Compile Include="Entities\AniDB_Anime_Category.cs" />
     <Compile Include="Entities\AniDB_Anime_Character.cs" />
     <Compile Include="Entities\AniDB_Anime_DefaultImage.cs" />
     <Compile Include="Entities\AniDB_Anime_Relation.cs" />
@@ -381,7 +410,6 @@
     <Compile Include="Entities\AniDB_Anime_Similar.cs" />
     <Compile Include="Entities\AniDB_Anime_Tag.cs" />
     <Compile Include="Entities\AniDB_Anime_Title.cs" />
-    <Compile Include="Entities\AniDB_Category.cs" />
     <Compile Include="Entities\AniDB_Character.cs" />
     <Compile Include="Entities\AniDB_Character_Seiyuu.cs" />
     <Compile Include="Entities\AniDB_Seiyuu.cs" />
@@ -441,7 +469,6 @@
     <Compile Include="JMMServiceImplementationImage.cs" />
     <Compile Include="Languages.cs" />
     <Compile Include="Mappings\AniDB_AnimeMap.cs" />
-    <Compile Include="Mappings\AniDB_Anime_CategoryMap.cs" />
     <Compile Include="Mappings\AniDB_Anime_CharacterMap.cs" />
     <Compile Include="Mappings\AniDB_Anime_DefaultImageMap.cs" />
     <Compile Include="Mappings\AniDB_Anime_RelationMap.cs" />
@@ -449,7 +476,6 @@
     <Compile Include="Mappings\AniDB_Anime_SimilarMap.cs" />
     <Compile Include="Mappings\AniDB_Anime_TagMap.cs" />
     <Compile Include="Mappings\AniDB_Anime_TitleMap.cs" />
-    <Compile Include="Mappings\AniDB_CategoryMap.cs" />
     <Compile Include="Mappings\AniDB_CharacterMap.cs" />
     <Compile Include="Mappings\AniDB_Character_SeiyuuMap.cs" />
     <Compile Include="Mappings\AniDB_SeiyuuMap.cs" />
@@ -508,36 +534,12 @@
     <Compile Include="Providers\MovieDB\MovieDBHelper.cs" />
     <Compile Include="Providers\MovieDB\MovieDB_Image_Result.cs" />
     <Compile Include="Providers\MovieDB\MovieDB_Movie_Result.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVEpisode.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVEpisodeUser.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVFriendRequest.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVGenericResponse.cs" />
     <Compile Include="Providers\TraktTV\TraktTVHelper.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVImages.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVImagesUserEpisode.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_AccountCreate.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_AccountTest.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_FriendDenyApprove.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_FriendsRequests.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_GetFriends.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_ShowEpisodeLibrary.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_ShowEpisodeSeen.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_ShowEpisodeUnseen.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_ShowScrobble.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVPost_ShowWatching.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVSeasonEpisode.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVSeason.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVSeasonUserCollectionWatched.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVShow.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVShowUserCollectionWatched.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVUser.cs" />
-    <Compile Include="Providers\TraktTV\TraktTVWatched.cs" />
     <Compile Include="Providers\TvDB\TvDBHelper.cs" />
     <Compile Include="Providers\TvDB\TVDBSeriesSearchResult.cs" />
     <Compile Include="Providers\TvDB\TvDBLanguage.cs" />
     <Compile Include="Repositories\AdhocRepository.cs" />
     <Compile Include="Repositories\AniDB_AnimeRepository.cs" />
-    <Compile Include="Repositories\AniDB_Anime_CategoryRepository.cs" />
     <Compile Include="Repositories\AniDB_Anime_CharacterRepository.cs" />
     <Compile Include="Repositories\AniDB_Anime_DefaultImageRepository.cs" />
     <Compile Include="Repositories\AniDB_Anime_RelationRepository.cs" />
@@ -545,7 +547,6 @@
     <Compile Include="Repositories\AniDB_Anime_SimilarRepository.cs" />
     <Compile Include="Repositories\AniDB_Anime_TagRepository.cs" />
     <Compile Include="Repositories\AniDB_Anime_TitleRepository.cs" />
-    <Compile Include="Repositories\AniDB_CategoryRepository.cs" />
     <Compile Include="Repositories\AniDB_CharacterRepository.cs" />
     <Compile Include="Repositories\AniDB_Character_SeiyuuRepository.cs" />
     <Compile Include="Repositories\AniDB_SeiyuuRepository.cs" />
@@ -601,6 +602,7 @@
     <Compile Include="ServerState.cs" />
     <Compile Include="StatsCache.cs" />
     <Compile Include="SubStream.cs" />
+    <Compile Include="TimeUpdater.cs" />
     <Compile Include="UI\AboutForm.xaml.cs">
       <DependentUpon>AboutForm.xaml</DependentUpon>
     </Compile>
@@ -624,6 +626,7 @@
     <Compile Include="UnhandledExceptionManager.cs" />
     <Compile Include="Utilities\GroupFilterHelper.cs" />
     <Compile Include="Utilities\GroupFilterSortingCriteria.cs" />
+    <Compile Include="Utilities\JsonExtensions.cs" />
     <Compile Include="Utilities\RenameFileHelper.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="WatchedUnwatchedCount.cs" />
@@ -838,6 +841,7 @@
   <ItemGroup>
     <Resource Include="Images\32_mail.png" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy "$(TargetDir)*.dll" "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\" /S /R /I /Y	
