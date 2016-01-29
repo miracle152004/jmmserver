@@ -177,7 +177,21 @@ namespace JMMServer
 				{
 					i++;
 
-					if (dictFilesExisting.ContainsKey(fileName)) continue;
+                    if (dictFilesExisting.ContainsKey(fileName))
+                    {
+                        if (fldr.IsDropSource != 1)
+                            continue;
+                        else
+                        {
+                            // if this is a file in a drop source, try moving it
+                            string filePath = string.Empty;
+                            int nshareID = 0;
+                            DataAccessHelper.GetShareAndPath(fileName, repFolders.GetAll(), ref nshareID, ref filePath);
+                            List<VideoLocal> filesSearch = repVidLocals.GetByName(filePath);
+                            foreach (VideoLocal vid in filesSearch)
+                                vid.MoveFileIfRequired();
+                        }
+                    }
 					
 					filesFound++;
 					logger.Info("Processing File {0}/{1} --- {2}", i, fileList.Count, fileName);
@@ -621,6 +635,12 @@ namespace JMMServer
 				AniDB_CharacterRepository repChars = new AniDB_CharacterRepository();
 				foreach (AniDB_Character chr in repChars.GetAll())
 				{
+
+                    if (chr.CharID == 75250)
+                    {
+                        Console.WriteLine("test");
+                    }
+
 					if (string.IsNullOrEmpty(chr.PosterPath)) continue;
 					bool fileExists = File.Exists(chr.PosterPath);
 					if (!fileExists)
@@ -703,26 +723,6 @@ namespace JMMServer
 
 					CommandRequest_DeleteFileFromMyList cmdDel = new CommandRequest_DeleteFileFromMyList(vl.Hash, vl.FileSize);
 					cmdDel.Save();
-
-                    // For deletion of files from Trakt, we will rely on the Daily sync
-                    /*
-                    // lets also try removing from the users trakt collection
-                    if (ServerSettings.Trakt_IsEnabled && !string.IsNullOrEmpty(ServerSettings.Trakt_AuthToken))
-                    {
-                        AnimeEpisodeRepository repEpisodes = new AnimeEpisodeRepository();
-                        List<AnimeEpisode> animeEpisodes = vl.GetAnimeEpisodes();
-
-                        if (animeEpisodes.Count > 0)
-                        {
-                            AnimeSeries ser = animeEpisodes[0].GetAnimeSeries();
-                            if (ser != null)
-                            {
-                                CommandRequest_TraktSyncCollectionSeries cmdSyncTrakt = new CommandRequest_TraktSyncCollectionSeries(ser.AnimeSeriesID, ser.GetSeriesName());
-                                cmdSyncTrakt.Save();
-                            }
-                        }
-
-                    }*/
 				}
 			}
 
@@ -774,7 +774,7 @@ namespace JMMServer
 
 				foreach (AnimeSeries ser in affectedSeries.Values)
 				{
-					ser.UpdateStats(true, true, true);
+					ser.QueueUpdateStats();
 					//StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
 				}
 
@@ -791,11 +791,11 @@ namespace JMMServer
 
 		public static void UpdateAllStats()
 		{
-			AnimeGroupRepository repGroups = new AnimeGroupRepository();
-			foreach (AnimeGroup grp in repGroups.GetAllTopLevelGroups())
-			{
-				grp.UpdateStatsFromTopLevel(true, true);
-			}
+            AnimeSeriesRepository repSeries = new AnimeSeriesRepository();
+            foreach (AnimeSeries ser in repSeries.GetAll())
+            {
+                ser.QueueUpdateStats();
+            }
 		}
 
 
@@ -1053,6 +1053,7 @@ namespace JMMServer
 
 		public static void CheckForTraktSyncUpdate(bool forceRefresh)
 		{
+
 			if (ServerSettings.Trakt_SyncFrequency == ScheduledUpdateFrequency.Never && !forceRefresh) return;
 			int freqHours = Utils.GetScheduledHours(ServerSettings.Trakt_SyncFrequency);
 
@@ -1102,7 +1103,44 @@ namespace JMMServer
 			cmd.Save();
 		}
 
-		public static void CheckForAniDBFileUpdate(bool forceRefresh)
+        public static void CheckForTraktTokenUpdate(bool forceRefresh)
+        {
+            try
+            {
+                // by updating the Trakt token regularly, the user won't need to authorize again
+                int freqHours = 24; // we need to update this daily
+
+                ScheduledUpdateRepository repSched = new ScheduledUpdateRepository();
+
+                ScheduledUpdate sched = repSched.GetByUpdateType((int)ScheduledUpdateType.TraktToken);
+                if (sched != null)
+                {
+                    // if we have run this in the last xxx hours and are not forcing it, then exit
+                    TimeSpan tsLastRun = DateTime.Now - sched.LastUpdate;
+                    logger.Trace("Last Trakt Token Update: {0} minutes ago", tsLastRun.TotalMinutes);
+                    if (tsLastRun.TotalHours < freqHours)
+                    {
+                        if (!forceRefresh) return;
+                    }
+                }
+
+                TraktTVHelper.RefreshAuthToken();
+                if (sched == null)
+                {
+                    sched = new ScheduledUpdate();
+                    sched.UpdateType = (int)ScheduledUpdateType.TraktToken;
+                    sched.UpdateDetails = "";
+                }
+                sched.LastUpdate = DateTime.Now;
+                repSched.Save(sched);
+            }
+            catch (Exception ex)
+            {
+                logger.ErrorException("Error in CheckForTraktTokenUpdate: " + ex.ToString(), ex);
+            }
+        }
+
+        public static void CheckForAniDBFileUpdate(bool forceRefresh)
 		{
 			if (ServerSettings.AniDB_File_UpdateFrequency == ScheduledUpdateFrequency.Never && !forceRefresh) return;
 			int freqHours = Utils.GetScheduledHours(ServerSettings.AniDB_File_UpdateFrequency);
@@ -1141,54 +1179,6 @@ namespace JMMServer
 			{
 				sched = new ScheduledUpdate();
 				sched.UpdateType = (int)ScheduledUpdateType.AniDBFileUpdates;
-				sched.UpdateDetails = "";
-			}
-			sched.LastUpdate = DateTime.Now;
-			repSched.Save(sched);
-		}
-
-		public static void CheckForLogClean()
-		{
-			int freqHours = 24;
-
-			// check for truncating the logs
-			ScheduledUpdateRepository repSched = new ScheduledUpdateRepository();
-
-			ScheduledUpdate sched = repSched.GetByUpdateType((int)ScheduledUpdateType.LogClean);
-			if (sched != null)
-			{
-				// if we have run this in the last 24 hours and are not forcing it, then exit
-				TimeSpan tsLastRun = DateTime.Now - sched.LastUpdate;
-				if (tsLastRun.TotalHours < freqHours) return;
-			}
-
-			// files which have been hashed, but don't have an associated episode
-			LogMessageRepository repVidLocals = new LogMessageRepository();
-
-			DateTime logCutoff = DateTime.Now.AddDays(-30);
-            //DateTime logCutoff = DateTime.Now.AddMinutes(-45);
-            try
-            {
-                using (var session = JMMService.SessionFactory.OpenSession())
-			    {
-				    foreach (LogMessage log in repVidLocals.GetAll(session))
-				    {
-                    
-                            if (log.LogDate < logCutoff)
-                                repVidLocals.Delete(session, log.LogMessageID);
-                    
-				    }
-			    }
-            }
-            catch { }
-
-            // now check for any files which have been manually linked and are less than 30 days old
-
-
-            if (sched == null)
-			{
-				sched = new ScheduledUpdate();
-				sched.UpdateType = (int)ScheduledUpdateType.LogClean;
 				sched.UpdateDetails = "";
 			}
 			sched.LastUpdate = DateTime.Now;

@@ -28,7 +28,7 @@ namespace JMMServer
 
 	public enum WhatPeopleAreSayingType
 	{
-		TraktShout = 1,
+		TraktComment = 1,
 		AniDBRecommendation = 2,
 		AniDBMustSee = 3,
 		AniDBForFans = 4,
@@ -93,7 +93,7 @@ namespace JMMServer
 		Trakt_Episode = 12,
 		Trakt_Friend = 13,
 		Trakt_ActivityScrobble = 14,
-		Trakt_ShoutUser = 15,
+		Trakt_CommentUser = 15,
 		Trakt_WatchedEpisode = 16
 	}
 
@@ -158,6 +158,7 @@ namespace JMMServer
 		Azure_SendAnimeTitle = 72,
         Azure_SendUserInfo = 73,
         AniDB_GetEpisodeUDP = 80,
+        Refresh_AnimeStats = 90,
 	}
 
 	public enum CommandRequestPriority
@@ -244,7 +245,8 @@ namespace JMMServer
 		AniDBMylistStats = 9,
 		AniDBFileUpdates = 10,
 		LogClean = 11,
-        AzureUserInfo = 12
+        AzureUserInfo = 12,
+        TraktToken = 13
 	}
 
 	public enum JMMImageType
@@ -263,7 +265,7 @@ namespace JMMServer
 		Trakt_Episode = 12,
 		Trakt_Friend = 13,
 		Trakt_ActivityScrobble = 14,
-		Trakt_ShoutUser = 15,
+		Trakt_CommentUser = 15,
 		Trakt_WatchedEpisode = 16
 	}
 
@@ -311,7 +313,9 @@ namespace JMMServer
 		Never = 1,
 		HoursSix = 2,
 		HoursTwelve = 3,
-		Daily = 4
+		Daily = 4,
+        WeekOne = 5,
+        MonthOne = 6
 	}
 
 	public enum GroupFilterConditionType
@@ -418,7 +422,7 @@ namespace JMMServer
 	public enum TraktActivityAction
 	{
 		Scrobble = 1,
-		Shout = 2
+		Comment = 2
 	}
 
 	public enum TraktActivityType

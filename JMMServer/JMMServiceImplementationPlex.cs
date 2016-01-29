@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.ServiceModel.Web;
@@ -7,6 +8,7 @@ using AniDBAPI;
 using BinaryNorthwest;
 using JMMContracts;
 using JMMContracts.PlexContracts;
+using JMMServer.Commands;
 using JMMServer.Entities;
 using JMMServer.ImageDownload;
 using JMMServer.Properties;
@@ -134,6 +136,21 @@ namespace JMMServer
                         pp.ViewedLeafCount = "0";
                         dirs.Add(pp);
                     }
+                    var repPlaylist = new PlaylistRepository();
+                    var playlists = repPlaylist.GetAll();
+                    if (playlists.Count > 0)
+                    {
+                        var pDir = new Directory();
+                        pDir.Key = pDir.PrimaryExtraKey = PlexHelper.PlexProxy(
+                             PlexHelper.ServerUrl(int.Parse(ServerSettings.JMMServerPort),
+                                 MainWindow.PathAddressPlex + "/GetMetadata/0/" + (int)JMMType.Playlist + "/0"));
+                        pDir.Title = "Playlists";
+                        pDir.Thumb = PlexHelper.ServerUrl(int.Parse(ServerSettings.JMMServerPort),
+                        MainWindow.PathAddressPlex + "/GetSupportImage/plex_404V.png");
+                        pDir.LeafCount = playlists.Count.ToString();
+                        pDir.ViewedLeafCount = "0";
+                        dirs.Add(pDir);
+                    }
                     dirs = dirs.OrderBy(a => a.Title).ToList();
                 }
                 ret.Childrens = dirs;
@@ -166,7 +183,8 @@ namespace JMMServer
                         return GetItemsFromSerie(user.JMMUserID, Id);
                     case JMMType.File:
                         return InternalGetFile(user.JMMUserID, Id);
-
+                    case JMMType.Playlist:
+                        return GetItemsFromPlaylist(user.JMMUserID, Id);
                 }
                 return new MemoryStream();
             }
@@ -176,6 +194,99 @@ namespace JMMServer
                 return new MemoryStream();
             }
 
+        }
+
+        private System.IO.Stream GetItemsFromPlaylist(int userid, string id)
+        {
+            var PlaylistID = -1;
+            int.TryParse(id, out PlaylistID);
+            var playlistRepository = new PlaylistRepository();
+            var repo = new AnimeEpisodeRepository();
+            if (PlaylistID == 0)
+            {
+                using (var session = JMMService.SessionFactory.OpenSession())
+                {
+                    var ret = new PlexObject(PlexHelper.NewMediaContainer("Playlists", false));
+                    if (!ret.Init())
+                        return new MemoryStream();
+                    var retPlaylists = new List<Video>();
+                    var playlists = playlistRepository.GetAll();
+                    foreach (var playlist in playlists)
+                    {
+                        var dir = new Directory();
+                        dir.Key = dir.PrimaryExtraKey = PlexHelper.PlexProxy(
+                            PlexHelper.ServerUrl(int.Parse(ServerSettings.JMMServerPort),
+                                MainWindow.PathAddressPlex + "/GetMetadata/0/" + (int)JMMType.Playlist + "/" +
+                                playlist.PlaylistID));
+                        dir.Title = playlist.PlaylistName;
+                        var episodeID = -1;
+                        if (int.TryParse(playlist.PlaylistItems.Split('|')[0].Split(';')[1], out episodeID))
+                        {
+                            var anime =
+                                repo.GetByID(session, episodeID)
+                                    .GetAnimeSeries(session)
+                                    .GetAnime(session);
+                            var poster = anime.GetDefaultPosterDetailsNoBlanks(session);
+                            var fanart = anime.GetDefaultFanartDetailsNoBlanks(session);
+                            if (poster != null)
+                                dir.Thumb = poster.GenPoster();
+                            if (fanart != null)
+                                dir.Art = fanart.GenArt();
+                        }
+                        else
+                        {
+                            dir.Thumb = PlexHelper.ServerUrl(int.Parse(ServerSettings.JMMServerPort),
+                            MainWindow.PathAddressPlex + "/GetSupportImage/plex_404V.png");
+                        }
+                        dir.LeafCount = playlist.PlaylistItems.Split('|').Count().ToString();
+                        dir.ViewedLeafCount = "0";
+                        retPlaylists.Add(dir);
+                    }
+                    retPlaylists = retPlaylists.OrderBy(a => a.Title).ToList();
+                    ret.Childrens = retPlaylists;
+                    return ret.GetStream();
+                }
+            }
+            else if (PlaylistID > 0)
+            {
+                var playlist = playlistRepository.GetByID(PlaylistID);
+                var playlistItems = playlist.PlaylistItems.Split('|');
+                var vids = new List<Video>();
+                var ret = new PlexObject(PlexHelper.NewMediaContainer(playlist.PlaylistName, true));
+                if (!ret.Init())
+                    return new MemoryStream();
+                ret.MediaContainer.ViewMode = "65586";
+                ret.MediaContainer.ViewGroup = "video";
+                using (var session = JMMService.SessionFactory.OpenSession())
+                {
+                    foreach (var item in playlistItems)
+                    {
+                        var episodeID = -1;
+                        int.TryParse(item.Split(';')[1], out episodeID);
+                        if (episodeID < 0) return new MemoryStream();
+
+                        var ep = repo.GetByID(session, episodeID);
+                        var v = new Video();
+                        var locals = ep.GetVideoLocals(session);
+                        if ((locals == null) || (locals.Count == 0))
+                            continue;
+                        var current = locals[0];
+                        try
+                        {
+                            PlexHelper.PopulateVideo(v, current, JMMType.File, userid);
+                            if (!string.IsNullOrEmpty(v.Duration))
+                                vids.Add(v);
+                        }
+                        catch (Exception e)
+                        {
+                            //Fast fix if file do not exist, and still is in db. (Xml Serialization of video info will fail on null)
+                        }
+                    }
+                    ret.Childrens = vids;
+                    return ret.GetStream();
+                }
+            }
+            return new MemoryStream();
         }
 
         private System.IO.Stream GetUnsort(int userid)
@@ -307,7 +418,7 @@ namespace JMMServer
                         break;
                 }
             }
-            ret.Childrens= ls.OrderBy(a => a.Title).ToList();
+            ret.MediaContainer.Childrens= ls;
             return ret.GetStream();
         }
 
@@ -354,9 +465,102 @@ namespace JMMServer
                 return ret.GetStream();
             }
         }
+        public void ToggleWatchedStatusOnEpisode(string userid, string episodeid, string watchedstatus)
+        {
+            try
+            {
+                int aep = 0;
+                int usid = 0;
+                bool wstatus = false;
+                if (!int.TryParse(episodeid, out aep))
+                    return;
+                if (!int.TryParse(userid, out usid))
+                    return;
+                if (!bool.TryParse(watchedstatus, out wstatus))
+                    return;
+
+                AnimeEpisodeRepository repEps = new AnimeEpisodeRepository();
+                AnimeEpisode ep = repEps.GetByID(aep);
+                if (ep == null)
+                    return;
+
+                ep.ToggleWatchedStatus(wstatus, true, DateTime.Now, false, false, usid, true);
+                ep.GetAnimeSeries().UpdateStats(true, false, true);
+            }
+            catch (Exception ex)
+            {
+                logger.ErrorException(ex.ToString(), ex);
+            }
+        }
+        public void VoteAnime(string userid, string seriesid, string votevalue, string votetype)
+        {
+            int serid = 0;
+            int usid = 0;
+            int vt = 0;
+            double vvalue = 0;
+            if (!int.TryParse(seriesid, out serid))
+                return;
+            if (!int.TryParse(userid, out usid))
+                return;
+            if (!int.TryParse(votetype, out vt))
+                return;
+            if (!double.TryParse(votevalue, NumberStyles.Any, CultureInfo.InvariantCulture, out vvalue))
+                return;
+            using (var session = JMMService.SessionFactory.OpenSession())
+            {
+                
+                AnimeSeriesRepository repSeries = new AnimeSeriesRepository();
+                AnimeSeries ser = repSeries.GetByID(session, serid);
+                AniDB_Anime anime = ser?.GetAnime();
+                if (anime == null)
+                    return;
+                string msg = string.Format("Voting for anime: {0} - Value: {1}", anime.AnimeID, vvalue);
+                logger.Info(msg);
+
+                // lets save to the database and assume it will work
+                AniDB_VoteRepository repVotes = new AniDB_VoteRepository();
+                List<AniDB_Vote> dbVotes = repVotes.GetByEntity(anime.AnimeID);
+                AniDB_Vote thisVote = null;
+                foreach (AniDB_Vote dbVote in dbVotes)
+                {
+                    // we can only have anime permanent or anime temp but not both
+                    if (vt == (int) enAniDBVoteType.Anime || vt == (int) enAniDBVoteType.AnimeTemp)
+                    {
+                        if (dbVote.VoteType == (int) enAniDBVoteType.Anime ||
+                            dbVote.VoteType == (int) enAniDBVoteType.AnimeTemp)
+                        {
+                            thisVote = dbVote;
+                        }
+                    }
+                    else
+                    {
+                        thisVote = dbVote;
+                    }
+                }
+
+                if (thisVote == null)
+                {
+                    thisVote = new AniDB_Vote();
+                    thisVote.EntityID = anime.AnimeID;
+                }
+                thisVote.VoteType = vt;
+
+                int iVoteValue = 0;
+                if (vvalue > 0)
+                    iVoteValue = (int) (vvalue*100);
+                else
+                    iVoteValue = (int) vvalue;
+
+                msg = string.Format("Voting for anime Formatted: {0} - Value: {1}", anime.AnimeID, iVoteValue);
+                logger.Info(msg);
+                thisVote.VoteValue = iVoteValue;
+                repVotes.Save(thisVote);
+                CommandRequest_VoteAnime cmdVote = new CommandRequest_VoteAnime(anime.AnimeID, vt, Convert.ToDecimal(vvalue));
+                cmdVote.Save();
+            }
+        }
 
 
-        
         public System.IO.Stream GetItemsFromSerie(int userid, string SerieId)
         {
             PlexObject ret = new PlexObject(PlexHelper.NewMediaContainer("Series", true));

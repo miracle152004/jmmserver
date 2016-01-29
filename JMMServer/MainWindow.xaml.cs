@@ -49,6 +49,7 @@ using JMMServer.Providers.Azure;
 using JMMServer.Commands.Azure;
 using TMDbLib.Objects.General;
 using JMMServer.Providers.TraktTV.Contracts;
+using System.Xml.Serialization;
 
 namespace JMMServer
 {
@@ -82,21 +83,24 @@ namespace JMMServer
 		private static string baseAddressMetroImageString = @"http://localhost:{0}/JMMServerMetroImage";
 		private static string baseAddressRESTString = @"http://localhost:{0}/JMMServerREST";
         private static string baseAddressPlexString = @"http://localhost:{0}/JMMServerPlex";
+        private static string baseAddressKodiString = @"http://localhost:{0}/JMMServerKodi";
 
-	    public static string PathAddressREST = "JMMServerREST";
+        public static string PathAddressREST = "JMMServerREST";
         public static string PathAddressPlex = "JMMServerPlex";
+        public static string PathAddressKodi = "JMMServerKodi";
 
         //private static Uri baseAddressTCP = new Uri("net.tcp://localhost:8112/JMMServerTCP");
-		//private static ServiceHost host = null;
-		//private static ServiceHost hostTCP = null;
-		private static ServiceHost hostImage = null;
+        //private static ServiceHost host = null;
+        //private static ServiceHost hostTCP = null;
+        private static ServiceHost hostImage = null;
 		private static ServiceHost hostStreaming = null;
 		private static ServiceHost hostBinary = null;
 		private static ServiceHost hostMetro = null;
 		private static ServiceHost hostMetroImage = null;
 		private static WebServiceHost hostREST = null;
         private static WebServiceHost hostPlex = null;
-	    //private static MessagingServer hostFile = null;
+        private static WebServiceHost hostKodi = null;
+        //private static MessagingServer hostFile = null;
         private static FileServer.FileServer hostFile = null;
 
 		private static BackgroundWorker workerImport = new BackgroundWorker();
@@ -111,7 +115,6 @@ namespace JMMServer
 
 		private static System.Timers.Timer autoUpdateTimer = null;
 		private static System.Timers.Timer autoUpdateTimerShort = null;
-        private System.Timers.Timer autoUpdateTimerLocal = null;
         DateTime lastAdminMessage = DateTime.Now.Subtract(new TimeSpan(12,0,0));
 		private static List<FileSystemWatcher> watcherVids = null;
 
@@ -179,8 +182,15 @@ namespace JMMServer
                 return new Uri(string.Format(baseAddressPlexString, ServerSettings.JMMServerPort));
             }
         }
+        public static Uri baseAddressKodi
+        {
+            get
+            {
+                return new Uri(string.Format(baseAddressKodiString, ServerSettings.JMMServerPort));
+            }
+        }
 
-		private Mutex mutex;
+        private Mutex mutex;
 		private readonly string mutexName = "JmmServer3.0Mutex";
 
 		public MainWindow()
@@ -821,7 +831,6 @@ namespace JMMServer
 
 				if (autoUpdateTimer != null) autoUpdateTimer.Enabled = false;
 				if (autoUpdateTimerShort != null) autoUpdateTimerShort.Enabled = false;
-                if (autoUpdateTimerLocal != null) autoUpdateTimerLocal.Enabled = false;
 
 				JMMService.CloseSessionFactory();
 
@@ -859,6 +868,7 @@ namespace JMMServer
 				StartMetroHost();
 				StartImageHostMetro();
                 StartPlexHost();
+                StartKodiHost();
 			    StartFileHost();
                 StartRESTHost();
                 StartStreamingHost();
@@ -886,13 +896,6 @@ namespace JMMServer
 				autoUpdateTimerShort.Elapsed += new System.Timers.ElapsedEventHandler(autoUpdateTimerShort_Elapsed);
 				autoUpdateTimerShort.Start();
 
-                // timer for automatic updates
-                autoUpdateTimerLocal = new System.Timers.Timer();
-                autoUpdateTimerLocal.AutoReset = true;
-                autoUpdateTimerLocal.Interval = 15 * 60 * 1000; // 15 * 60 seconds (15 minutes)
-                autoUpdateTimerLocal.Elapsed += autoUpdateTimerLocal_Elapsed;
-                autoUpdateTimerLocal.Start();
-
 				ServerState.Instance.CurrentSetupStatus = "Initializing File Watchers...";
 				StartWatchingFiles();
 
@@ -915,17 +918,6 @@ namespace JMMServer
 				e.Result = false;
 			}
 		}
-
-        void autoUpdateTimerLocal_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            TimeSpan ts = DateTime.Now - lastVersionCheck;
-            if (ts.TotalHours > 6)
-            {
-                logger.Trace("Checking for JMM Server updates...");
-                lastVersionCheck = DateTime.Now;
-                automaticUpdater.ForceCheckForUpdate(true);
-            }
-        }
 
 		#endregion
 
@@ -1109,7 +1101,7 @@ namespace JMMServer
 							if (ser != null)
 							{
 								// update all the groups above this series in the heirarchy
-								ser.UpdateStats(true, true, true);
+								ser.QueueUpdateStats();
 								//StatsCache.Instance.UpdateUsingSeries(ser.AnimeSeriesID);
 							}
 
@@ -1208,6 +1200,7 @@ namespace JMMServer
 				StartImageHost();
 				StartImageHostMetro();
 			    StartPlexHost();
+                StartKodiHost();
 			    StartFileHost();
 				StartStreamingHost();
 				StartRESTHost();
@@ -1240,23 +1233,6 @@ namespace JMMServer
 
             //CommandRequest_ReadMediaInfo cr2 = new CommandRequest_ReadMediaInfo(2037);
             //cr2.Save();
-
-            /*AniDB_AnimeRepository repAnime = new AniDB_AnimeRepository();
-			foreach (AniDB_Anime anime in repAnime.GetAll())
-			{
-				List<TraktTV_ShoutGet> shouts = TraktTVHelper.GetShowShouts(anime.AnimeID);
-				if (shouts == null || shouts.Count == 0)
-				{
-					//logger.Info("{0} ({1}) = 0 Shouts", anime.MainTitle, anime.AnimeID);
-				}
-				else
-				{
-					if (shouts.Count <= 5)
-						logger.Info("{0} ({1}) = {2} MINOR Shouts", anime.MainTitle, anime.AnimeID, shouts.Count);
-					else
-						logger.Info("{0} ({1}) = {2} *** MAJOR *** Shouts", anime.MainTitle, anime.AnimeID, shouts.Count);
-				}
-			}*/
 
             //anime temp = MALHelper.SearchAnimesByTitle("Naruto");
             //MALHelper.VerifyCredentials();
@@ -1401,16 +1377,17 @@ namespace JMMServer
             */
 
             // trinity-seven - 10441
-            //TraktV2ShowExtended show = TraktTVHelper.GetShowInfoV2("high-school-dxd");
-            //TraktTVHelper.GetShowShoutsV2(8660);
+            //TraktV2ShowExtended show = TraktTVHelper.GetShowInfoV2("madan-no-ou-to-vanadis");
+            //TraktTVHelper.GetShowCommentsV2(8660);
             //TraktTVHelper.GetFriendsV2();
             //TraktTVHelper.RefreshAuthToken();
+
 
             //D003BB3D
             //string ret = TraktTVHelper.EnterTraktPIN("D003BB3D");
 
             //string x = "";
-            //TraktTVHelper.PostShoutShow("mayday", "this is a test comment", false, ref x);
+            //TraktTVHelper.PostCommentShow("mayday", "this is a test comment", false, ref x);
 
             //AnimeEpisodeRepository repEp = new AnimeEpisodeRepository();
             //AnimeEpisode ep = repEp.GetByID(32);
@@ -1432,6 +1409,16 @@ namespace JMMServer
             //AnimeSeries ser2 = repSeries.GetByAnimeID(10846);
             //TraktTVHelper.SyncCollectionToTrakt_Series(ser2);
             //TraktTVHelper.UpdateAllInfoAndImages("my-teen-romantic-comedy-snafu", true);
+
+            //TraktTVHelper.CleanupDatabase();
+            //TraktTVHelper.SyncCollectionToTrakt();
+
+            //JMMServer.Providers.Azure.Azure_AnimeLink link2 = JMMServer.Providers.Azure.AzureWebAPI.Admin_GetRandomTraktLinkForApproval();
+            //List<Providers.Azure.CrossRef_AniDB_Trakt> xrefs= JMMServer.Providers.Azure.AzureWebAPI.Admin_Get_CrossRefAniDBTrakt(link2.RandomAnimeID);
+
+            
+            
+            
 
             AboutForm frm = new AboutForm();
 			frm.Owner = this;
@@ -1593,8 +1580,54 @@ namespace JMMServer
 			}
 
             logger.Info("Checking for updates...");
-            automaticUpdater.ForceCheckForUpdate(true);
-		}
+            CheckForUpdatesNew(false);
+
+        }
+
+        public void CheckForUpdatesNew(bool forceShowForm)
+        {
+            try
+            {
+                long verCurrent = 0;
+                long verNew = 0;
+
+                // get the latest version as according to the release
+                if (!forceShowForm)
+                {
+                    Providers.JMMAutoUpdates.JMMVersions verInfo = Providers.JMMAutoUpdates.JMMAutoUpdatesHelper.GetLatestVersionInfo();
+                    if (verInfo == null) return;
+
+                    // get the user's version
+                    System.Reflection.Assembly a = System.Reflection.Assembly.GetExecutingAssembly();
+                    if (a == null)
+                    {
+                        logger.Error("Could not get current version");
+                        return;
+                    }
+                    System.Reflection.AssemblyName an = a.GetName();
+
+                    verNew = verInfo.versions.ServerVersionAbs;
+
+                    verCurrent = (an.Version.Revision * 100) +
+                        (an.Version.Build * 100 * 100) +
+                        (an.Version.Minor * 100 * 100 * 100) +
+                        (an.Version.Major * 100 * 100 * 100 * 100);
+                }
+
+                if (forceShowForm || verNew > verCurrent)
+                {
+                    UpdateForm frm = new UpdateForm();
+                    frm.Owner = this;
+                    frm.ShowDialog();
+                }
+
+            }
+            catch (Exception ex)
+            {
+                logger.ErrorException(ex.ToString(), ex);
+            }
+
+        }
 
 
 
@@ -1657,7 +1690,7 @@ namespace JMMServer
 			this.Cursor = Cursors.Wait;
 			Importer.UpdateAllStats();
 			this.Cursor = Cursors.Arrow;
-			MessageBox.Show("Stats have been updated", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+			MessageBox.Show("Stat updates have been queued", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 		}
 
 		void btnSyncVotes_Click(object sender, RoutedEventArgs e)
@@ -1866,11 +1899,10 @@ namespace JMMServer
 			Importer.CheckForTvDBUpdates(false);
 			Importer.CheckForMyListSyncUpdate(false);
 			Importer.CheckForTraktAllSeriesUpdate(false);
-			Importer.CheckForTraktSyncUpdate(false);
+			Importer.CheckForTraktTokenUpdate(false);
 			Importer.CheckForMALUpdate(false);
 			Importer.CheckForMyListStatsUpdate(false);
 			Importer.CheckForAniDBFileUpdate(false);
-			Importer.CheckForLogClean();
 			Importer.UpdateAniDBTitles();
             Importer.SendUserInfoUpdate(false);
 		}
@@ -2113,6 +2145,7 @@ namespace JMMServer
 			// no endpoints are explicitly configured, the runtime will create
 			// one endpoint per base address for each service contract implemented
 			// by the service.
+           
 			hostImage.Open();
 			logger.Trace("Now Accepting client connections for images...");
 		}
@@ -2265,7 +2298,16 @@ namespace JMMServer
             hostPlex.Open();
 	    }
 
-	    private static void StartFileHost()
+        private static void StartKodiHost()
+        {
+            hostKodi = new WebServiceHost(typeof(JMMServiceImplementationKodi), baseAddressKodi);
+            ServiceEndpoint ep = hostKodi.AddServiceEndpoint(typeof(IJMMServerKodi), new WebHttpBinding(), "");
+            ServiceDebugBehavior stp = hostKodi.Description.Behaviors.Find<ServiceDebugBehavior>();
+            stp.HttpHelpPageEnabled = false;
+            hostKodi.Open();
+        }
+
+        private static void StartFileHost()
 	    {
             hostFile = new FileServer.FileServer(int.Parse(ServerSettings.JMMServerFilePort));
             hostFile.Start();
@@ -2283,7 +2325,33 @@ namespace JMMServer
 			hostREST.Open();
 		}
 
-		private static void ReadFiles()
+        private static void StartRESTHost_New()
+        {
+            hostREST = new WebServiceHost(typeof(JMMServiceImplementationREST), baseAddressREST);
+
+            ServiceEndpoint ep = hostREST.AddServiceEndpoint(typeof(IJMMServerREST), new WebHttpBinding()
+            {
+                CloseTimeout = TimeSpan.FromMinutes(20),
+                OpenTimeout = TimeSpan.FromMinutes(20),
+                SendTimeout = TimeSpan.FromMinutes(20),
+                MaxBufferSize = 65536,
+                MaxBufferPoolSize = 524288,
+                MaxReceivedMessageSize = 107374182400,
+                TransferMode = TransferMode.StreamedResponse
+            }, "");
+
+            // modify behaviours
+
+            WebHttpBehavior wbb = hostREST.Description.Behaviors.Find<WebHttpBehavior>();
+            wbb.AutomaticFormatSelectionEnabled = true;
+
+            ServiceDebugBehavior stp = hostREST.Description.Behaviors.Find<ServiceDebugBehavior>();
+            stp.HttpHelpPageEnabled = false;
+
+            hostREST.Open();
+        }
+
+        private static void ReadFiles()
 		{
 			// Steps for processing a file
 			// 1. Check if it is a video file
@@ -2353,6 +2421,9 @@ namespace JMMServer
 
             if (hostPlex!=null)
                 hostPlex.Close();
+
+            if (hostKodi != null)
+                hostKodi.Close();
 
             if (hostFile!=null)
                 hostFile.Stop();

@@ -11,6 +11,21 @@ namespace JMMContracts
 	public interface IJMMServer
 	{
         [OperationContract]
+        Contract_AnimeEpisode GetLastWatchedEpisodeForSeries(int animeSeriesID, int jmmuserID);
+
+        [OperationContract]
+        string UseMyTraktLinksWebCache(int animeID);
+
+        [OperationContract]
+        string UseMyTvDBLinksWebCache(int animeID);
+
+        [OperationContract]
+        List<Contract_CrossRef_AniDB_TraktV2> GetAllTraktCrossRefs();
+
+        [OperationContract]
+        bool CheckTraktLinkValidity(string slug, bool removeDBEntries);
+
+        [OperationContract]
         Contract_Azure_AnimeLink Admin_GetRandomLinkForApproval(int linkType);
 
         [OperationContract]
@@ -379,9 +394,16 @@ namespace JMMContracts
         List<Contract_Trakt_Episode> GetAllTraktEpisodesByTraktID(string traktID);
 
         [OperationContract]
-        List<Contract_Azure_CrossRef_AniDB_Trakt> GetTraktCrossRefWebCache(int animeID);
+        List<Contract_Azure_CrossRef_AniDB_Trakt> GetTraktCrossRefWebCache(int animeID, bool isAdmin);
 
-		[OperationContract]
+        [OperationContract]
+        string ApproveTraktCrossRefWebCache(int crossRef_AniDB_TraktId);
+
+        [OperationContract]
+        string RevokeTraktCrossRefWebCache(int crossRef_AniDB_TraktId);
+
+
+        [OperationContract]
 		List<Contract_CrossRef_AniDB_TraktV2> GetTraktCrossRefV2(int animeID);
 
         [OperationContract]
@@ -508,10 +530,10 @@ namespace JMMContracts
 		string ChangePassword(int userID, string newPassword);
 
 		[OperationContract]
-		List<Contract_Trakt_ShoutUser> GetTraktShoutsForAnime(int animeID);
+		List<Contract_Trakt_CommentUser> GetTraktCommentsForAnime(int animeID);
 
 		[OperationContract]
-        bool PostShoutShow(string traktID, string shoutText, bool isSpoiler, ref string returnMessage);
+        bool PostTraktCommentShow(string traktID, string commentText, bool isSpoiler, ref string returnMessage);
 
 		[OperationContract]
 		Contract_AnimeGroup GetTopLevelGroupForSeries(int animeSeriesID, int userID);
@@ -680,9 +702,6 @@ namespace JMMContracts
 
 		[OperationContract]
 		void RescanManuallyLinkedFiles();
-
-		[OperationContract]
-		List<Contract_LogMessage> GetLogMessages(string logType);
 
 		[OperationContract]
 		List<Contract_AnimeSearch> OnlineAnimeTitleSearch(string titleQuery);

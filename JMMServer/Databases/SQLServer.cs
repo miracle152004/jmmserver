@@ -178,6 +178,9 @@ namespace JMMServer.Databases
                 UpdateSchema_034(versionNumber);
                 UpdateSchema_035(versionNumber);
                 UpdateSchema_036(versionNumber);
+                UpdateSchema_037(versionNumber);
+                UpdateSchema_038(versionNumber);
+                UpdateSchema_039(versionNumber);
             }
 			catch (Exception ex)
 			{
@@ -1355,7 +1358,53 @@ namespace JMMServer.Databases
             UpdateDatabaseVersion(thisVersion);
         }
 
-		private static void ExecuteSQLCommands(List<string> cmds)
+        private static void UpdateSchema_037(int currentVersionNumber)
+        {
+            int thisVersion = 37;
+            if (currentVersionNumber >= thisVersion) return;
+
+            logger.Info("Updating schema to VERSION: {0}", thisVersion);
+
+            // Now do the migration
+            DatabaseHelper.FixHashes();
+
+            UpdateDatabaseVersion(thisVersion);
+        }
+
+        private static void UpdateSchema_038(int currentVersionNumber)
+        {
+            int thisVersion = 38;
+            if (currentVersionNumber >= thisVersion) return;
+
+            logger.Info("Updating schema to VERSION: {0}", thisVersion);
+
+            List<string> cmds = new List<string>();
+
+            cmds.Add("DROP TABLE LogMessage");
+
+            ExecuteSQLCommands(cmds);
+
+            UpdateDatabaseVersion(thisVersion);
+        }
+
+        private static void UpdateSchema_039(int currentVersionNumber)
+        {
+            int thisVersion = 39;
+            if (currentVersionNumber >= thisVersion) return;
+
+            logger.Info("Updating schema to VERSION: {0}", thisVersion);
+
+            List<string> cmds = new List<string>();
+
+            cmds.Add("ALTER TABLE AnimeSeries ADD DefaultFolder nvarchar(max) NULL");
+
+            ExecuteSQLCommands(cmds);
+
+            UpdateDatabaseVersion(thisVersion);
+
+        }
+
+        private static void ExecuteSQLCommands(List<string> cmds)
 		{
 			using (SqlConnection tmpConn = new SqlConnection(string.Format("Server={0};User ID={1};Password={2};database={3}", ServerSettings.DatabaseServer,
 				ServerSettings.DatabaseUsername, ServerSettings.DatabasePassword, ServerSettings.DatabaseName)))

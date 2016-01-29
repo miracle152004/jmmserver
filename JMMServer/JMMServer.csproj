@@ -52,9 +52,6 @@
     <Reference Include="Antlr3.Runtime">
       <HintPath>..\Dependencies\Antlr3.Runtime.dll</HintPath>
     </Reference>
-    <Reference Include="AutomaticUpdaterWPF">
-      <HintPath>..\Dependencies\AutomaticUpdaterWPF.dll</HintPath>
-    </Reference>
     <Reference Include="FluentNHibernate">
       <HintPath>..\Dependencies\FluentNHibernate.dll</HintPath>
     </Reference>
@@ -91,6 +88,10 @@
     <Reference Include="MySql.Data, Version=6.7.4.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\Dependencies\MySql.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="NHibernate">
       <HintPath>..\Dependencies\NHibernate.dll</HintPath>
@@ -237,6 +238,7 @@
     <Compile Include="Commands\AniDB\CommandRequest_SyncMyList.cs" />
     <Compile Include="Commands\AniDB\CommandRequest_SyncMyVotes.cs" />
     <Compile Include="Commands\CommandRequest_ReadMediaInfo.cs" />
+    <Compile Include="Commands\CommandRequest_RefreshAnime.cs" />
     <Compile Include="Commands\MAL\CommandRequest_MALDownloadStatusFromMAL.cs" />
     <Compile Include="Commands\MAL\CommandRequest_MALSearchAnime.cs" />
     <Compile Include="Commands\MAL\CommandRequest_MALUpdatedWatchedStatus.cs" />
@@ -282,7 +284,6 @@
     <Compile Include="Entities\CrossRef_CustomTag.cs" />
     <Compile Include="Entities\CustomTag.cs" />
     <Compile Include="Entities\FileFfdshowPreset.cs" />
-    <Compile Include="Entities\LogMessage.cs" />
     <Compile Include="Entities\Playlist.cs" />
     <Compile Include="Entities\RenameScript.cs" />
     <Compile Include="FileRenamer.cs" />
@@ -290,6 +291,7 @@
     <Compile Include="FileServer\UPnP.cs" />
     <Compile Include="ImageDownload\ImageDetails.cs" />
     <Compile Include="JMMServiceImplementationMetro.cs" />
+    <Compile Include="JMMServiceImplementationKodi.cs" />
     <Compile Include="JMMServiceImplementationPlex.cs" />
     <Compile Include="JMMServiceImplementationREST.cs" />
     <Compile Include="JMMServiceImplementationStreaming.cs" />
@@ -304,9 +306,13 @@
     <Compile Include="Mappings\CrossRef_CustomTagMap.cs" />
     <Compile Include="Mappings\CustomTagMap.cs" />
     <Compile Include="Mappings\FileFfdshowPresetMap.cs" />
-    <Compile Include="Mappings\LogMessageMap.cs" />
     <Compile Include="Mappings\PlaylistMap.cs" />
     <Compile Include="Mappings\RenameScriptMap.cs" />
+    <Compile Include="Kodi\KodiEpisodeType.cs" />
+    <Compile Include="Kodi\KodiExtensions.cs" />
+    <Compile Include="Kodi\KodiHelper.cs" />
+    <Compile Include="Kodi\KodiObject.cs" />
+    <Compile Include="Kodi\Utf8SringWriter.cs" />
     <Compile Include="Plex\PlexEpisodeType.cs" />
     <Compile Include="Plex\PlexExtensions.cs" />
     <Compile Include="Plex\PlexHelper.cs" />
@@ -332,6 +338,11 @@
     <Compile Include="Providers\Azure\Azure_CrossRef_File_Episode.cs" />
     <Compile Include="Providers\Azure\Azure_CrossRef_File_EpisodeInput.cs" />
     <Compile Include="Providers\Azure\Azure_UserInfo.cs" />
+    <Compile Include="Providers\JMMAutoUpdates\JMMAutoUpdatesHelper.cs" />
+    <Compile Include="Providers\JMMAutoUpdates\JMMVersions.cs" />
+    <Compile Include="Providers\JMMAutoUpdates\Update.cs" />
+    <Compile Include="Providers\JMMAutoUpdates\Updates.cs" />
+    <Compile Include="Providers\JMMAutoUpdates\Versions.cs" />
     <Compile Include="Providers\MyAnimeList\MALClasses\AnimeList.cs" />
     <Compile Include="Providers\MyAnimeList\MALClasses\SearchResult.cs" />
     <Compile Include="Providers\MyAnimeList\MALClasses\VerifyCredentials.cs" />
@@ -394,7 +405,6 @@
     <Compile Include="Repositories\CrossRef_CustomTagRepository.cs" />
     <Compile Include="Repositories\CustomTagRepository.cs" />
     <Compile Include="Repositories\FileFfdshowPresetRepository.cs" />
-    <Compile Include="Repositories\LogMessageRepository.cs" />
     <Compile Include="Repositories\PlaylistRepository.cs" />
     <Compile Include="Repositories\RenameScriptRepository.cs" />
     <Compile Include="Security\CRC32.cs" />
@@ -623,6 +633,9 @@
     </Compile>
     <Compile Include="UI\PasswordBoxAssistant.cs" />
     <Compile Include="UI\ServerInfo.cs" />
+    <Compile Include="UI\UpdateForm.xaml.cs">
+      <DependentUpon>UpdateForm.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UnhandledExceptionManager.cs" />
     <Compile Include="Utilities\GroupFilterHelper.cs" />
     <Compile Include="Utilities\GroupFilterSortingCriteria.cs" />
@@ -679,6 +692,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\UIStyles.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\UpdateForm.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

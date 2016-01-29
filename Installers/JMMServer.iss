@@ -7,8 +7,8 @@
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{898530ED-CFC7-4744-B2B8-A8D98A2FA06C}
 AppName=JMM Server
-AppVersion=3.4.3.2
-;AppVerName=JMM Server 3.4.2.2
+AppVersion=3.4.5.3
+;AppVerName=JMM Server 3.4.5.3
 AppPublisher=JMM
 AppPublisherURL=https://github.com/japanesemediamanager
 AppSupportURL=https://github.com/japanesemediamanager
@@ -34,7 +34,6 @@ Name: "quicklaunchicon"; Components: main; Description: "{cm:CreateQuickLaunchIc
 [Files]
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\JMMServer.exe"; Components: main; DestDir: "{app}"; Flags: ignoreversion 
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\Antlr3.Runtime.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\AutomaticUpdaterWPF.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\Castle.Core.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\client.wyc"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\FluentNHibernate.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
@@ -62,10 +61,10 @@ Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\NHibernate.pdb"; Comp
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\NLog.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\Remotion.Data.Linq.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\System.Data.SQLite.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\wyUpdate.exe"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\TMDbLib.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\TMDbLib.pdb"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\RestSharp.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\Newtonsoft.Json.dll"; Components: main; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\Config\JMMServer.exe.Config"; Components: main; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\x64\hasher.dll"; Components: main; DestDir: "{app}\x64"; Flags: ignoreversion
 Source: "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\x64\MediaInfo.dll"; Components: main; DestDir: "{app}\x64"; Flags: ignoreversion
