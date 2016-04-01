@@ -14,13 +14,15 @@ namespace AniDBAPI
 	}
 
 	public enum AniDBFileDeleteType
-	{
-		Delete = 0,
-		MarkDeleted = 1,
-        MarkExternalStorage = 2
-	}
+    {
+        Delete = 0,
+        DeleteLocalOnly = 1,
+        MarkDeleted = 2,
+        MarkExternalStorage = 3,
+        MarkUnknown = 4
+    }
 
-	public enum enAniDBVoteType
+    public enum enAniDBVoteType
 	{
 		Anime = 1,
 		AnimeTemp = 2,
@@ -56,7 +58,9 @@ namespace AniDBAPI
 		DeleteFile = 24,
 		GetMyListStats = 25,
 		MarkFileDeleted = 26,
-        MarkFileExternal = 27
+        MarkFileExternal = 27,
+        MarkFileUnknown = 28
+		
 	}
 
 	public enum enHelperActivityType
@@ -86,6 +90,9 @@ namespace AniDBAPI
 		FileMarkedAsDeleted = 24,
         MarkingFileExternal = 25,
         FileMarkedExternal = 26,
+		MarkingFileUnknown = 27,
+        FileMarkedUnknown = 28,
+
 		//Episode
 		GotEpisodeInfo = 30,
 		GettingEpisodeInfo = 32,

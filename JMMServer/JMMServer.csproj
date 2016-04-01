@@ -165,6 +165,7 @@
     <Compile Include="AniDB_API\Commands\AniDBCommand_Logout.cs" />
     <Compile Include="AniDB_API\Commands\AniDBCommand_MarkFileAsDeleted.cs" />
     <Compile Include="AniDB_API\Commands\AniDBCommand_MarkFileAsExternal.cs" />
+    <Compile Include="AniDB_API\Commands\AniDBCommand_MarkFileAsUnknown.cs" />
     <Compile Include="AniDB_API\Commands\AniDBCommand_NotifyGet.cs" />
     <Compile Include="AniDB_API\Commands\AniDBCommand_NotifyList.cs" />
     <Compile Include="AniDB_API\Commands\AniDBCommand_Ping.cs" />
@@ -313,6 +314,8 @@
     <Compile Include="Kodi\KodiHelper.cs" />
     <Compile Include="Kodi\KodiObject.cs" />
     <Compile Include="Kodi\Utf8SringWriter.cs" />
+    <Compile Include="Plex\HistoryInfo.cs" />
+    <Compile Include="Plex\MediaContainerTypes.cs" />
     <Compile Include="Plex\PlexEpisodeType.cs" />
     <Compile Include="Plex\PlexExtensions.cs" />
     <Compile Include="Plex\PlexHelper.cs" />
@@ -370,9 +373,12 @@
     <Compile Include="Providers\TraktTV\Contracts\TraktV2Images.cs" />
     <Compile Include="Providers\TraktTV\Contracts\TraktV2ImagesExtended.cs" />
     <Compile Include="Providers\TraktTV\Contracts\TraktV2Logo.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2Movie.cs" />
     <Compile Include="Providers\TraktTV\Contracts\TraktV2Poster.cs" />
     <Compile Include="Providers\TraktTV\Contracts\Search\TraktV2SearchShowResult.cs" />
     <Compile Include="Providers\TraktTV\Contracts\Search\TraktV2SearchTvDBIDShowResult.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2ScrobbleEpisode.cs" />
+    <Compile Include="Providers\TraktTV\Contracts\TraktV2ScrobbleMovie.cs" />
     <Compile Include="Providers\TraktTV\Contracts\TraktV2Season.cs" />
     <Compile Include="Providers\TraktTV\Contracts\TraktV2SeasonIds.cs" />
     <Compile Include="Providers\TraktTV\Contracts\TraktV2Show.cs" />
@@ -637,6 +643,8 @@
       <DependentUpon>UpdateForm.xaml</DependentUpon>
     </Compile>
     <Compile Include="UnhandledExceptionManager.cs" />
+    <Compile Include="UPnPData.cs" />
+    <Compile Include="UPnPServerBrowserDialog.cs" />
     <Compile Include="Utilities\GroupFilterHelper.cs" />
     <Compile Include="Utilities\GroupFilterSortingCriteria.cs" />
     <Compile Include="Utilities\JsonExtensions.cs" />
@@ -749,6 +757,7 @@
     <None Include="Resources\plex_others.bin" />
     <None Include="Resources\plex_ovas.bin" />
     <None Include="Resources\plex_parodies.bin" />
+    <None Include="Resources\plex_playlists.bin" />
     <None Include="Resources\plex_specials.bin" />
     <None Include="Resources\plex_trailers.bin" />
     <None Include="Resources\plex_tvepisodes.bin" />
@@ -858,7 +867,17 @@
   <ItemGroup>
     <Resource Include="Images\32_mail.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <COMReference Include="UPNPLib">
+      <Guid>{DB3442A7-A2E9-4A59-9CB5-F5C1A5D901E5}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy "$(TargetDir)*.dll" "C:\Projects\[ JMM Binaries No Configs ]\JMMServer\" /S /R /I /Y	

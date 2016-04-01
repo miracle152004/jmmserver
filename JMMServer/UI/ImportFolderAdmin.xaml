@@ -76,7 +76,7 @@
                 <Image Height="16" Width="16" Source="/Images/32_info.png" Margin="5,2,5,0" Grid.Column="0" VerticalAlignment="Top"/>
                 <TextBlock VerticalAlignment="Center" Text="Import folders are the the base locations where you keep your anime. You will need to add at least one folder and then select 'Run Import' on the Actions tab" Margin="0,0,5,0" TextWrapping="Wrap" Grid.Column="1"/>
                 <local:HyperLinkStandard Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="0,5,5,5" DisplayText="Detailed explanation of options"
-                                                                        URL="http://japanesemediamanager.github.io/jmmserver/import.html"/>
+                                                                        URL="http://jmediamanager.org/jmm-server/configuring-jmm-server/#import-folders"/>
             </Grid>
         </Border>
 
@@ -106,6 +106,13 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" >
                     <Image Height="16" Width="16" Source="/Images/32_add.png" Margin="0,0,5,0"/>
                     <TextBlock VerticalAlignment="Center" Text="New Folder" Margin="0,0,5,0"/>
+                </StackPanel>
+            </Button>
+
+            <Button HorizontalAlignment="Left" Name="btnAddUPnPSource" Margin="10,0,0,0" Style="{DynamicResource RoundButtonStyle}" Width="Auto">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" >
+                    <Image Height="16" Width="16" Source="/Images/32_add.png" Margin="0,0,5,0"/>
+                    <TextBlock VerticalAlignment="Center" Text="UPnP Source" Margin="0,0,5,0"/>
                 </StackPanel>
             </Button>
         </StackPanel>

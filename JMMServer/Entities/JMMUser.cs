@@ -17,8 +17,9 @@ namespace JMMServer.Entities
 		public int IsTraktUser { get; set; }
 		public string HideCategories { get; set; }
 		public int? CanEditServerSettings { get; set; }
+        public string PlexUsers { get; set; }
 
-		public Contract_JMMUser ToContract()
+        public Contract_JMMUser ToContract()
 		{
 			Contract_JMMUser contract = new Contract_JMMUser();
 
@@ -30,7 +31,7 @@ namespace JMMServer.Entities
 			contract.IsTraktUser = this.IsTraktUser;
 			contract.HideCategories = this.HideCategories;
 			contract.CanEditServerSettings = this.CanEditServerSettings;
-
+            contract.PlexUsers = this.PlexUsers;
 			return contract;
 		}
 
@@ -47,7 +48,7 @@ namespace JMMServer.Entities
 			string[] animeCats = ser.GetAnime(session).AllCategories.ToLower().Split('|');
 			foreach (string cat in cats)
 			{
-				if (!string.IsNullOrEmpty(cat) && animeCats.Contains(cat))
+				if (!string.IsNullOrEmpty(cat.Trim()) && animeCats.Contains(cat.Trim()))
 				{
 					return false;
 				}
@@ -77,7 +78,7 @@ namespace JMMServer.Entities
 			string[] animeCats = anime.AllCategories.ToLower().Split('|');
 			foreach (string cat in cats)
 			{
-				if (!string.IsNullOrEmpty(cat) && animeCats.Contains(cat))
+				if (!string.IsNullOrEmpty(cat.Trim()) && animeCats.Contains(cat.Trim()))
 				{
 					return false;
 				}
@@ -88,16 +89,13 @@ namespace JMMServer.Entities
 
 		public bool AllowedGroup(AnimeGroup grp, AnimeGroup_User userRec)
 		{
-			if (grp.AnimeGroupID == 266)
-				Console.Write("");
-
 			if (string.IsNullOrEmpty(HideCategories)) return true;
 
 			string[] cats = HideCategories.ToLower().Split(',');
 			string[] animeCats = grp.ToContract(userRec).Stat_AllTags.ToLower().Split('|');
 			foreach (string cat in cats)
 			{
-				if (!string.IsNullOrEmpty(cat) && animeCats.Contains(cat))
+				if (!string.IsNullOrEmpty(cat.Trim()) && animeCats.Contains(cat.Trim()))
 				{
 					return false;
 				}
