@@ -1,109 +1,111 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using JMMContracts;
+﻿using JMMContracts;
 using JMMServer.Repositories;
+using JMMServer.Repositories.NHibernate;
 using NHibernate;
 
 namespace JMMServer.Entities
 {
-	public class AniDB_Anime_DefaultImage
-	{
-		public int AniDB_Anime_DefaultImageID { get; private set; }
-		public int AnimeID { get; set; }
-		public int ImageParentID { get; set; }
-		public int ImageParentType { get; set; }
-		public int ImageType { get; set; }
+    public class AniDB_Anime_DefaultImage
+    {
+        public int AniDB_Anime_DefaultImageID { get; private set; }
+        public int AnimeID { get; set; }
+        public int ImageParentID { get; set; }
+        public int ImageParentType { get; set; }
+        public int ImageType { get; set; }
 
-		public Contract_AniDB_Anime_DefaultImage ToContract()
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				return ToContract(session);
-			}
-		}
+        public Contract_AniDB_Anime_DefaultImage ToContract()
+        {
+            using (var session = JMMService.SessionFactory.OpenSession())
+            {
+                return ToContract(session.Wrap());
+            }
+        }
 
-		public Contract_AniDB_Anime_DefaultImage ToContract(ISession session)
-		{
-			Contract_AniDB_Anime_DefaultImage contract = new Contract_AniDB_Anime_DefaultImage();
+        public Contract_AniDB_Anime_DefaultImage ToContract(IImageEntity parentImage)
+        {
+            var contract = new Contract_AniDB_Anime_DefaultImage
+                {
+                    AniDB_Anime_DefaultImageID = AniDB_Anime_DefaultImageID,
+                    AnimeID = AnimeID,
+                    ImageParentID = ImageParentID,
+                    ImageParentType = ImageParentType,
+                    ImageType = ImageType
+                };
 
-			contract.AniDB_Anime_DefaultImageID = this.AniDB_Anime_DefaultImageID;
-			contract.AnimeID = this.AnimeID;
-			contract.ImageParentID = this.ImageParentID;
-			contract.ImageParentType = this.ImageParentType;
-			contract.ImageType = this.ImageType;
+            JMMImageType imgType = (JMMImageType)ImageParentType;
 
-			contract.MovieFanart = null;
-			contract.MoviePoster = null;
-			contract.TVPoster = null;
-			contract.TVFanart = null;
-			contract.TVWideBanner = null;
-			contract.TraktFanart = null;
-			contract.TraktPoster = null;
+            switch (imgType)
+            {
+                case JMMImageType.TvDB_Banner:
+                    contract.TVWideBanner = (parentImage as TvDB_ImageWideBanner)?.ToContract();
+                    break;
+                case JMMImageType.TvDB_Cover:
+                    contract.TVPoster = (parentImage as TvDB_ImagePoster)?.ToContract();
+                    break;
+                case JMMImageType.TvDB_FanArt:
+                    contract.TVFanart = (parentImage as TvDB_ImageFanart)?.ToContract();
+                    break;
+                case JMMImageType.MovieDB_Poster:
+                    contract.MoviePoster = (parentImage as MovieDB_Poster)?.ToContract();
+                    break;
+                case JMMImageType.MovieDB_FanArt:
+                    contract.MovieFanart = (parentImage as MovieDB_Fanart)?.ToContract();
+                    break;
+                case JMMImageType.Trakt_Fanart:
+                    contract.TraktFanart = (parentImage as Trakt_ImageFanart)?.ToContract();
+                    break;
+                case JMMImageType.Trakt_Poster:
+                    contract.TraktPoster = (parentImage as Trakt_ImagePoster)?.ToContract();
+                    break;
+            }
 
-			JMMImageType imgType = (JMMImageType)ImageParentType;
+            return contract;
+        }
 
-			switch (imgType)
-			{
-				case JMMImageType.TvDB_Banner:
+        public Contract_AniDB_Anime_DefaultImage ToContract(ISessionWrapper session)
+        {
+            JMMImageType imgType = (JMMImageType)ImageParentType;
+            IImageEntity parentImage = null;
 
-					TvDB_ImageWideBannerRepository repBanners = new TvDB_ImageWideBannerRepository();
-					TvDB_ImageWideBanner banner = repBanners.GetByID(session, ImageParentID);
-					if (banner != null) contract.TVWideBanner = banner.ToContract();
+            switch (imgType)
+            {
+                case JMMImageType.TvDB_Banner:
+                    TvDB_ImageWideBannerRepository repBanners = new TvDB_ImageWideBannerRepository();
 
-					break;
+                    parentImage = repBanners.GetByID(session, ImageParentID);
+                    break;
+                case JMMImageType.TvDB_Cover:
+                    TvDB_ImagePosterRepository repPosters = new TvDB_ImagePosterRepository();
 
-				case JMMImageType.TvDB_Cover:
+                    parentImage = repPosters.GetByID(session, ImageParentID);
+                    break;
+                case JMMImageType.TvDB_FanArt:
+                    TvDB_ImageFanartRepository repFanart = new TvDB_ImageFanartRepository();
 
-					TvDB_ImagePosterRepository repPosters = new TvDB_ImagePosterRepository();
-					TvDB_ImagePoster poster = repPosters.GetByID(session, ImageParentID);
-					if (poster != null) contract.TVPoster = poster.ToContract();
+                    parentImage = repFanart.GetByID(session, ImageParentID);
+                    break;
+                case JMMImageType.MovieDB_Poster:
+                    MovieDB_PosterRepository repMoviePosters = new MovieDB_PosterRepository();
 
-					break;
+                    parentImage = repMoviePosters.GetByID(session, ImageParentID);
+                    break;
+                case JMMImageType.MovieDB_FanArt:
+                    MovieDB_FanartRepository repMovieFanart = new MovieDB_FanartRepository();
 
-				case JMMImageType.TvDB_FanArt:
+                    parentImage = repMovieFanart.GetByID(session, ImageParentID);
+                    break;
+                case JMMImageType.Trakt_Fanart:
+                    Trakt_ImageFanartRepository repTraktFanart = new Trakt_ImageFanartRepository();
+                    parentImage = repTraktFanart.GetByID(session, ImageParentID);
+                    break;
+                case JMMImageType.Trakt_Poster:
+                    Trakt_ImagePosterRepository repTraktPoster = new Trakt_ImagePosterRepository();
 
-					TvDB_ImageFanartRepository repFanart = new TvDB_ImageFanartRepository();
-					TvDB_ImageFanart fanart = repFanart.GetByID(session, ImageParentID);
-					if (fanart != null) contract.TVFanart = fanart.ToContract();
+                    parentImage = repTraktPoster.GetByID(session, ImageParentID);
+                    break;
+            }
 
-					break;
-
-				case JMMImageType.MovieDB_Poster:
-
-					MovieDB_PosterRepository repMoviePosters = new MovieDB_PosterRepository();
-					MovieDB_Poster moviePoster = repMoviePosters.GetByID(session, ImageParentID);
-					if (moviePoster != null) contract.MoviePoster = moviePoster.ToContract();
-
-					break;
-
-				case JMMImageType.MovieDB_FanArt:
-
-					MovieDB_FanartRepository repMovieFanart = new MovieDB_FanartRepository();
-					MovieDB_Fanart movieFanart = repMovieFanart.GetByID(session, ImageParentID);
-					if (movieFanart != null) contract.MovieFanart = movieFanart.ToContract();
-
-					break;
-
-				case JMMImageType.Trakt_Fanart:
-
-					Trakt_ImageFanartRepository repTraktFanart = new Trakt_ImageFanartRepository();
-					Trakt_ImageFanart traktFanart = repTraktFanart.GetByID(session, ImageParentID);
-					if (traktFanart != null) contract.TraktFanart = traktFanart.ToContract();
-
-					break;
-
-				case JMMImageType.Trakt_Poster:
-
-					Trakt_ImagePosterRepository repTraktPoster = new Trakt_ImagePosterRepository();
-					Trakt_ImagePoster traktPoster = repTraktPoster.GetByID(session, ImageParentID);
-					if (traktPoster != null) contract.TraktPoster = traktPoster.ToContract();
-
-					break;
-			}
-
-			return contract;
-		}
-	}
+            return ToContract(parentImage);
+        }
+    }
 }

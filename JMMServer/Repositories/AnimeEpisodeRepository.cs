@@ -1,237 +1,259 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using JMMServer.Entities;
-using NHibernate.Criterion;
-using BinaryNorthwest;
-using System.Collections;
 using JMMServer.Databases;
+using JMMServer.Entities;
+using JMMServer.PlexAndKodi;
+using JMMServer.Repositories.NHibernate;
 using NHibernate;
+using NutzCode.InMemoryIndex;
 
 namespace JMMServer.Repositories
 {
-	public class AnimeEpisodeRepository
-	{
-		public void Save(AnimeEpisode obj)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				Save(session, obj);
-			}
-		}
+    public class AnimeEpisodeRepository
+    {
+        private static PocoCache<int, AnimeEpisode> Cache;
+        private static PocoIndex<int, AnimeEpisode, int> Series;
+        private static PocoIndex<int, AnimeEpisode, int> EpisodeIDs;
 
-		public void Save(ISession session, AnimeEpisode obj)
-		{
-			// populate the database
-			using (var transaction = session.BeginTransaction())
-			{
-				session.SaveOrUpdate(obj);
-				transaction.Commit();
-			}
-		}
+        public static void InitCache()
+        {
+            string t = "AnimeEpisodes";
+            ServerState.Instance.CurrentSetupStatus = string.Format(JMMServer.Properties.Resources.Database_Cache, t, string.Empty);
+            AnimeEpisodeRepository repo = new AnimeEpisodeRepository();
 
-		public AnimeEpisode GetByID(int id)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				return GetByID(session, id);
-			}
-		}
+            Cache = new PocoCache<int, AnimeEpisode>(repo.InternalGetAll(), a => a.AnimeEpisodeID);
+            Series = Cache.CreateIndex(a => a.AnimeSeriesID);
+            EpisodeIDs = Cache.CreateIndex(a => a.AniDB_EpisodeID);
 
-		public AnimeEpisode GetByID(ISession session, int id)
-		{
-			return session.Get<AnimeEpisode>(id);
-		}
+            int cnt = 0;
+            List<AnimeEpisode> grps =
+                Cache.Values.Where(a => a.PlexContractVersion < AnimeEpisode.PLEXCONTRACT_VERSION).ToList();
+            int max = grps.Count;
+            foreach (AnimeEpisode g in grps)
+            {
+                repo.Save(g);
+                cnt++;
+                if (cnt%10 == 0)
+                {
+                    ServerState.Instance.CurrentSetupStatus = string.Format(JMMServer.Properties.Resources.Database_Cache, t,
+                        " DbRegen - " + cnt + "/" + max);
+                }
+            }
+            ServerState.Instance.CurrentSetupStatus = string.Format(JMMServer.Properties.Resources.Database_Cache, t,
+                " DbRegen - " + max + "/" + max);
+        }
 
-		public List<AnimeEpisode> GetBySeriesID(int seriesid)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				return GetBySeriesID(session, seriesid);
-			}
-		}
+        private List<AnimeEpisode> InternalGetAll()
+        {
+            using (var session = JMMService.SessionFactory.OpenSession())
+            {
+                var grps = session
+                    .CreateCriteria(typeof(AnimeEpisode))
+                    .List<AnimeEpisode>();
 
-		public List<AnimeEpisode> GetBySeriesID(ISession session, int seriesid)
-		{
-			var eps = session
-				.CreateCriteria(typeof(AnimeEpisode))
-				.Add(Restrictions.Eq("AnimeSeriesID", seriesid))
-				.List<AnimeEpisode>();
+                return new List<AnimeEpisode>(grps);
+            }
+        }
 
-			return new List<AnimeEpisode>(eps);
-		}
+        private void UpdatePlexContract(AnimeEpisode e)
+        {
+            e.PlexContract = Helper.GenerateVideoFromAnimeEpisode(e);
+        }
 
-		public AnimeEpisode GetByAniDBEpisodeID(int epid)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				return GetByAniDBEpisodeID(session, epid);
-			}
-		}
+        public void Save(AnimeEpisode obj)
+        {
+            using (var session = JMMService.SessionFactory.OpenSession())
+            {
+                Save(session, obj);
+            }
+        }
 
-		public AnimeEpisode GetByAniDBEpisodeID(ISession session, int epid)
-		{
-			AnimeEpisode obj = session
-				.CreateCriteria(typeof(AnimeEpisode))
-				.Add(Restrictions.Eq("AniDB_EpisodeID", epid))
-				.UniqueResult<AnimeEpisode>();
+        public void Save(ISession session, AnimeEpisode obj)
+        {
+            lock (obj)
+            {
+                if (obj.AnimeEpisodeID == 0)
+                {
+                    obj.PlexContract = null;
+                    using (var transaction = session.BeginTransaction())
+                    {
+                        session.SaveOrUpdate(obj);
+                        transaction.Commit();
+                    }
+                }
+                UpdatePlexContract(obj);
+                using (var transaction = session.BeginTransaction())
+                {
+                    session.SaveOrUpdate(obj);
+                    transaction.Commit();
+                }
+                Cache.Update(obj);
+            }
+        }
 
-			return obj;
-		}
+        public AnimeEpisode GetByID(int id)
+        {
+            return Cache.Get(id);
+        }
 
-		public List<AnimeEpisode> GetByAniEpisodeIDAndSeriesID(int epid, int seriesid)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				return GetByAniEpisodeIDAndSeriesID(session, epid, seriesid);
-			}
-		}
+        public AnimeEpisode GetByID(ISession session, int id)
+        {
+            return GetByID(id);
+        }
 
-		public List<AnimeEpisode> GetByAniEpisodeIDAndSeriesID(ISession session, int epid, int seriesid)
-		{
-			var eps = session
-				.CreateCriteria(typeof(AnimeEpisode))
-				.Add(Restrictions.Eq("AniDB_EpisodeID", epid))
-				.Add(Restrictions.Eq("AnimeSeriesID", seriesid))
-				.List<AnimeEpisode>();
+        public List<AnimeEpisode> GetAll()
+        {
+            return Cache.Values.ToList();
+        }
 
-			return new List<AnimeEpisode>(eps);
-		}
+        public List<AnimeEpisode> GetBySeriesID(int seriesid)
+        {
+            return Series.GetMultiple(seriesid);
+        }
 
-		/// <summary>
-		/// Get all the AnimeEpisode records associate with an AniDB_File record
-		/// AnimeEpisode.AniDB_EpisodeID -> AniDB_Episode.EpisodeID
-		/// AniDB_Episode.EpisodeID -> CrossRef_File_Episode.EpisodeID
-		/// CrossRef_File_Episode.Hash -> VideoLocal.Hash
-		/// </summary>
-		/// <param name="hash"></param>
-		/// <returns></returns>
-		public List<AnimeEpisode> GetByHash(ISession session, string hash)
-		{
-			var eps = session.CreateQuery("Select ae FROM AnimeEpisode as ae, CrossRef_File_Episode as xref WHERE ae.AniDB_EpisodeID = xref.EpisodeID AND xref.Hash= :Hash")
-				.SetParameter("Hash", hash)
-				.List<AnimeEpisode>();
+        public List<AnimeEpisode> GetBySeriesID(ISessionWrapper session, int seriesid)
+        {
+            return GetBySeriesID(seriesid);
+        }
 
-			return new List<AnimeEpisode>(eps);
-		}
+        public AnimeEpisode GetByAniDBEpisodeID(int epid)
+        {
+            //AniDB_Episode may not unique for the series, Example with Toriko Episode 1 and One Piece 492, same AniDBEpisodeID in two shows.
+            return EpisodeIDs.GetOne(epid);
+        }
 
-		public List<AnimeEpisode> GetByHash(string hash)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				return GetByHash(session, hash);
-			}
-		}
-
-		public List<AnimeEpisode> GetEpisodesWithMultipleFiles(bool ignoreVariations)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				//FROM AnimeEpisode x WHERE x.AniDB_EpisodeID IN (Select xref.EpisodeID FROM CrossRef_File_Episode xref WHERE xref.Hash IN (Select vl.Hash from VideoLocal vl) GROUP BY xref.EpisodeID HAVING COUNT(xref.EpisodeID) > 1)
+        public AnimeEpisode GetByAniDBEpisodeID(ISession session, int epid)
+        {
+            //AniDB_Episode may not unique for the series, Example with Toriko Episode 1 and One Piece 492, same AniDBEpisodeID in two shows.        
+            return GetByAniDBEpisodeID(epid);
+        }
 
 
-				//FROM AnimeEpisode x INNER JOIN (select xref.EpisodeID as EpisodeID from CrossRef_File_Episode xref inner join VideoLocal vl ON xref.Hash = vl.Hash group by xref.EpisodeID  having count(xref.EpisodeID)>1) g ON g.EpisodeID = x.AniDB_EpisodeID
+        /// <summary>
+        /// Get all the AnimeEpisode records associate with an AniDB_File record
+        /// AnimeEpisode.AniDB_EpisodeID -> AniDB_Episode.EpisodeID
+        /// AniDB_Episode.EpisodeID -> CrossRef_File_Episode.EpisodeID
+        /// CrossRef_File_Episode.Hash -> VideoLocal.Hash
+        /// </summary>
+        /// <param name="hash"></param>
+        /// <returns></returns>
+        public List<AnimeEpisode> GetByHash(ISession session, string hash)
+        {
+            return
+                session.CreateQuery(
+                    "Select ae.AnimeEpisodeID FROM AnimeEpisode as ae, CrossRef_File_Episode as xref WHERE ae.AniDB_EpisodeID = xref.EpisodeID AND xref.Hash= :Hash")
+                    .SetParameter("Hash", hash)
+                    .List<int>().Select(GetByID).Where(a => a != null).ToList();
+        }
 
-				if (ServerSettings.DatabaseType.Trim().Equals(Constants.DatabaseType.MySQL, StringComparison.InvariantCultureIgnoreCase))
-				{
-					// work around for MySQL performance issue when handling sub queries
-					List<AnimeEpisode> epList = new List<AnimeEpisode>();
-					string sql = "Select x.AnimeEpisodeID " +
-						"FROM AnimeEpisode x " +
-						"INNER JOIN  " +
-						"(select xref.EpisodeID as EpisodeID " +
-						"from CrossRef_File_Episode xref " +
-						"inner join VideoLocal vl ON xref.Hash = vl.Hash ";
+        public List<AnimeEpisode> GetByHash(string hash)
+        {
+            using (var session = JMMService.SessionFactory.OpenSession())
+            {
+                return GetByHash(session, hash);
+            }
+        }
 
-					if (ignoreVariations)
-						sql += " where IsVariation = 0 ";
+        public List<AnimeEpisode> GetEpisodesWithMultipleFiles(bool ignoreVariations)
+        {
+            using (var session = JMMService.SessionFactory.OpenSession())
+            {
+                //FROM AnimeEpisode x WHERE x.AniDB_EpisodeID IN (Select xref.EpisodeID FROM CrossRef_File_Episode xref WHERE xref.Hash IN (Select vl.Hash from VideoLocal vl) GROUP BY xref.EpisodeID HAVING COUNT(xref.EpisodeID) > 1)
 
-					sql += "group by xref.EpisodeID  having count(xref.EpisodeID)>1) " +
-						"g ON g.EpisodeID = x.AniDB_EpisodeID " +
-						" ";
-					ArrayList results = DatabaseHelper.GetData(sql);
 
-					foreach (object[] res in results)
-					{
-						int animeEpisodeID = int.Parse(res[0].ToString());
-						AnimeEpisode ep = session.Get<AnimeEpisode>(animeEpisodeID);
-						if (ep != null)
-							epList.Add(ep);
-					}
+                //FROM AnimeEpisode x INNER JOIN (select xref.EpisodeID as EpisodeID from CrossRef_File_Episode xref inner join VideoLocal vl ON xref.Hash = vl.Hash group by xref.EpisodeID  having count(xref.EpisodeID)>1) g ON g.EpisodeID = x.AniDB_EpisodeID
 
-					return epList;
-				}
-				else
-				{
-					string sql = "FROM AnimeEpisode x WHERE x.AniDB_EpisodeID IN " +
-						"(Select xref.EpisodeID FROM CrossRef_File_Episode xref WHERE xref.Hash IN " +
-						"(Select vl.Hash from VideoLocal vl ";
+                if (ServerSettings.DatabaseType.Trim()
+                    .Equals(Constants.DatabaseType.MySQL, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    // work around for MySQL performance issue when handling sub queries
+                    List<AnimeEpisode> epList = new List<AnimeEpisode>();
+                    string sql = "Select x.AnimeEpisodeID " +
+                                 "FROM AnimeEpisode x " +
+                                 "INNER JOIN  " +
+                                 "(select xref.EpisodeID as EpisodeID " +
+                                 "from CrossRef_File_Episode xref " +
+                                 "inner join VideoLocal vl ON xref.Hash = vl.Hash ";
 
-					if (ignoreVariations)
-						sql += " where IsVariation = 0 ";
+                    if (ignoreVariations)
+                        sql += " where IsVariation = 0 ";
 
-					sql += ") GROUP BY xref.EpisodeID HAVING COUNT(xref.EpisodeID) > 1)";
+                    sql += "group by xref.EpisodeID  having count(xref.EpisodeID)>1) " +
+                           "g ON g.EpisodeID = x.AniDB_EpisodeID " +
+                           " ";
+                    ArrayList results = DatabaseExtensions.Instance.GetData(sql);
 
-					var eps = session.CreateQuery(sql)
-						.List<AnimeEpisode>();
+                    foreach (object[] res in results)
+                    {
+                        int animeEpisodeID = int.Parse(res[0].ToString());
+                        AnimeEpisode ep = GetByID(animeEpisodeID);
+                        if (ep != null)
+                            epList.Add(ep);
+                    }
 
-					return new List<AnimeEpisode>(eps);
-				}
-			}
-		}
+                    return epList;
+                }
+                else
+                {
+                    string sql = "SELECT x.AnimeEpisodeID FROM AnimeEpisode x WHERE x.AniDB_EpisodeID IN " +
+                                 "(Select xref.EpisodeID FROM CrossRef_File_Episode xref WHERE xref.Hash IN " +
+                                 "(Select vl.Hash from VideoLocal vl ";
 
-		public List<AnimeEpisode> GetUnwatchedEpisodes(int seriesid, int userid)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				var eps = session.CreateQuery("FROM AnimeEpisode x WHERE x.AnimeEpisodeID NOT IN (SELECT AnimeEpisodeID FROM AnimeEpisode_User WHERE AnimeSeriesID = :AnimeSeriesID AND JMMUserID = :JMMUserID) AND x.AnimeSeriesID = :AnimeSeriesID")
-					.SetParameter("AnimeSeriesID", seriesid)
-					.SetParameter("JMMUserID", userid)
-					.List<AnimeEpisode>();
+                    if (ignoreVariations)
+                        sql += " where IsVariation = 0 ";
 
-				return new List<AnimeEpisode>(eps);
-			}
-		}
+                    sql += ") GROUP BY xref.EpisodeID HAVING COUNT(xref.EpisodeID) > 1)";
 
-		public List<AnimeEpisode> GetMostRecentlyAdded(int seriesID)
-		{
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				var eps = session
-					.CreateCriteria(typeof(AnimeEpisode))
-					.Add(Restrictions.Eq("AnimeSeriesID", seriesID))
-					.AddOrder(Order.Desc("DateTimeCreated"))
-					.SetMaxResults(1)
-					.List<AnimeEpisode>();
+                    return session.CreateQuery(sql).List<int>().Select(GetByID).Where(a => a != null).ToList();
+                    ;
+                }
+            }
+        }
 
-				return new List<AnimeEpisode>(eps);
-			}
-		}
+        public List<AnimeEpisode> GetUnwatchedEpisodes(int seriesid, int userid)
+        {
+            using (var session = JMMService.SessionFactory.OpenSession())
+            {
+                return
+                    session.CreateQuery(
+                        "SELECT x.AnimeEpisodeID FROM AnimeEpisode x WHERE x.AnimeEpisodeID NOT IN (SELECT AnimeEpisodeID FROM AnimeEpisode_User WHERE AnimeSeriesID = :AnimeSeriesID AND JMMUserID = :JMMUserID) AND x.AnimeSeriesID = :AnimeSeriesID")
+                        .SetParameter("AnimeSeriesID", seriesid)
+                        .SetParameter("JMMUserID", userid)
+                        .List<int>().Select(GetByID).Where(a => a != null).ToList();
+            }
+        }
 
-		public void Delete(int id)
-		{
-			AnimeEpisode cr = GetByID(id);
-			if (cr != null)
-			{
-				// delete user records
-				AnimeEpisode_UserRepository repUsers = new AnimeEpisode_UserRepository();
-				foreach (AnimeEpisode_User epuser in repUsers.GetByEpisodeID(id))
-					repUsers.Delete(epuser.AnimeEpisode_UserID);
-			}
+        public List<AnimeEpisode> GetMostRecentlyAdded(int seriesID)
+        {
+            return GetBySeriesID(seriesID).OrderByDescending(a => a.DateTimeCreated).ToList();
+        }
 
-			using (var session = JMMService.SessionFactory.OpenSession())
-			{
-				// populate the database
-				using (var transaction = session.BeginTransaction())
-				{
-					if (cr != null)
-					{
-						session.Delete(cr);
-						transaction.Commit();
-					}
-				}
-			}
-		}
-	}
+        public void Delete(int id)
+        {
+            AnimeEpisode cr = GetByID(id);
+            if (cr != null)
+            {
+                // delete user records
+                AnimeEpisode_UserRepository repUsers = new AnimeEpisode_UserRepository();
+                foreach (AnimeEpisode_User epuser in repUsers.GetByEpisodeID(id))
+                    repUsers.Delete(epuser.AnimeEpisode_UserID);
+            }
+
+            using (var session = JMMService.SessionFactory.OpenSession())
+            {
+                // populate the database
+                using (var transaction = session.BeginTransaction())
+                {
+                    if (cr != null)
+                    {
+                        Cache.Remove(cr);
+                        session.Delete(cr);
+                        transaction.Commit();
+                    }
+                }
+            }
+        }
+    }
 }

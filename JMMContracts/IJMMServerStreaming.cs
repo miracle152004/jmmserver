@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.ServiceModel;
-using System.IO;
+﻿using System.ServiceModel;
 
 namespace JMMContracts
 {
-	[ServiceContract]
-	public interface IJMMServerStreaming
-	{
-		[OperationContract]
-		Stream Download(string fileName);
-	}
+    [ServiceContract]
+    public interface IJMMServerStreaming
+    {
+        [OperationContract]
+        System.IO.Stream Download(string fileName);
+    }
 }

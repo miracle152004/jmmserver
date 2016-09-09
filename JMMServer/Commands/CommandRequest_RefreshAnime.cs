@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Globalization;
+using System.Threading;
 using JMMServer.Entities;
 using JMMServer.Repositories;
 
@@ -11,19 +9,19 @@ namespace JMMServer.Commands
     public class CommandRequest_RefreshAnime : CommandRequestImplementation, ICommandRequest
     {
         public int AnimeID { get; set; }
+
         public CommandRequest_RefreshAnime(int animeID)
         {
             AnimeID = animeID;
 
             this.CommandType = (int) CommandRequestType.Refresh_AnimeStats;
-            this.Priority = (int)DefaultPriority;
+            this.Priority = (int) DefaultPriority;
             GenerateCommandID();
         }
+
         public CommandRequest_RefreshAnime()
         {
-
         }
-
 
 
         public CommandRequestPriority DefaultPriority
@@ -31,11 +29,11 @@ namespace JMMServer.Commands
             get { return CommandRequestPriority.Priority5; }
         }
 
-        public string PrettyDescription
+        public QueueStateStruct PrettyDescription
         {
             get
             {
-                return string.Format("Refreshing Anime Stats: {0}", AnimeID);
+                return new QueueStateStruct() { queueState = QueueStateEnum.Refresh, extraParams = new string[] { AnimeID.ToString() } };
             }
         }
 
@@ -43,7 +41,7 @@ namespace JMMServer.Commands
         {
             AnimeSeriesRepository repSeries = new AnimeSeriesRepository();
             AnimeSeries ser = repSeries.GetByAnimeID(AnimeID);
-            if (ser!=null)
+            if (ser != null)
                 ser.UpdateStats(true, true, true);
         }
 
