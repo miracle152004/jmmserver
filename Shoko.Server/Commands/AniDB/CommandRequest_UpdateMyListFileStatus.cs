@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
+using Shoko.Commons.Extensions;
 using Shoko.Commons.Queue;
 using Shoko.Models.Queue;
 using Shoko.Models.Server;
@@ -43,7 +44,7 @@ namespace Shoko.Server.Commands
             WatchedDateAsSecs = watchedDateSecs;
 
             GenerateCommandID();
-            FullFileName = RepoFactory.FileNameHash.GetByHash(Hash).FirstOrDefault()?.FileName;
+            FullFileName = Repo.FileNameHash.GetByHash(Hash).FirstOrDefault()?.FileName;
         }
 
         public override void ProcessCommand()
@@ -54,27 +55,48 @@ namespace Shoko.Server.Commands
             try
             {
                 // NOTE - we might return more than one VideoLocal record here, if there are duplicates by hash
-                SVR_VideoLocal vid = RepoFactory.VideoLocal.GetByHash(Hash);
+                SVR_VideoLocal vid = Repo.VideoLocal.GetByHash(Hash);
                 if (vid != null)
                 {
-                    if (WatchedDateAsSecs > 0)
+                    if (vid.GetAniDBFile() != null)
                     {
-                        DateTime? watchedDate = Commons.Utils.AniDB.GetAniDBDateAsDate(WatchedDateAsSecs);
-                        ShokoService.AnidbProcessor.UpdateMyListFileStatus(vid, Watched, watchedDate);
+                        if (WatchedDateAsSecs > 0)
+                        {
+                            DateTime? watchedDate = Commons.Utils.AniDB.GetAniDBDateAsDate(WatchedDateAsSecs);
+                            ShokoService.AnidbProcessor.UpdateMyListFileStatus(vid, Watched, watchedDate);
+                        }
+                        else
+                            ShokoService.AnidbProcessor.UpdateMyListFileStatus(vid, Watched);
                     }
                     else
-                        ShokoService.AnidbProcessor.UpdateMyListFileStatus(vid, Watched);
+                    {
+                        // we have a manual link, so get the xrefs and add the episodes instead as generic files
+                        var xrefs = vid.EpisodeCrossRefs;
+                        foreach (var xref in xrefs)
+                        {
+                            var episode = xref.GetEpisode();
+                            if (episode == null) continue;
+                            if (WatchedDateAsSecs > 0)
+                            {
+                                DateTime? watchedDate = Commons.Utils.AniDB.GetAniDBDateAsDate(WatchedDateAsSecs);
+                                ShokoService.AnidbProcessor.UpdateMyListFileStatus(vid, episode.AnimeID,
+                                    episode.EpisodeNumber, Watched, watchedDate);
+                            }
+                            else
+                                ShokoService.AnidbProcessor.UpdateMyListFileStatus(vid, episode.AnimeID,
+                                    episode.EpisodeNumber, Watched);
+                        }
+                    }
+
                     logger.Info("Updating file list status: {0} - {1}", vid, Watched);
 
                     if (UpdateSeriesStats)
                     {
                         // update watched stats
-                        List<SVR_AnimeEpisode> eps = RepoFactory.AnimeEpisode.GetByHash(vid.ED2KHash);
+                        List<SVR_AnimeEpisode> eps = Repo.AnimeEpisode.GetByHash(vid.ED2KHash);
                         if (eps.Count > 0)
                         {
-                            // all the eps should belong to the same anime
-                            eps[0].GetAnimeSeries().QueueUpdateStats();
-                            //eps[0].AnimeSeries.TopLevelAnimeGroup.UpdateStatsFromTopLevel(true, true, false);
+                            eps.DistinctBy(a => a.AnimeSeriesID).ForEach(a => a.GetAnimeSeries().QueueUpdateStats());
                         }
                     }
                 }
@@ -123,7 +145,7 @@ namespace Shoko.Server.Commands
                         TryGetProperty(docCreator, "CommandRequest_UpdateMyListFileStatus", "WatchedDateAsSecs"),
                         out int dateSecs))
                     WatchedDateAsSecs = dateSecs;
-                FullFileName = RepoFactory.FileNameHash.GetByHash(Hash).FirstOrDefault()?.FileName;
+                FullFileName = Repo.FileNameHash.GetByHash(Hash).FirstOrDefault()?.FileName;
             }
 
             if (Hash.Trim().Length > 0)

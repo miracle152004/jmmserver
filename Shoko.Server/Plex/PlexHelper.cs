@@ -31,7 +31,7 @@ namespace Shoko.Server.Plex
         private static readonly ConcurrentDictionary<int, PlexHelper> Cache = new ConcurrentDictionary<int, PlexHelper>();
 
         private readonly int _userId;
-        private JMMUser _user { get => RepoFactory.JMMUser.GetByID(_userId); }
+        private JMMUser _user { get => Repo.JMMUser.GetByID(_userId); }
 
         internal readonly JsonSerializerSettings SerializerSettings = new JsonSerializerSettings();
 
@@ -40,8 +40,10 @@ namespace Shoko.Server.Plex
         private DateTime _lastCacheTime = DateTime.MinValue;
         private DateTime _lastMediaCacheTime = DateTime.MinValue;
 
+        private MediaDevice[] _plexMediaDevices = null;
 
         private MediaDevice _mediaDevice;
+        private bool? isAuthenticated = null;
 
         static PlexHelper()
         {
@@ -58,20 +60,20 @@ namespace Shoko.Server.Plex
         {
             get
             {
-                if (string.IsNullOrEmpty(ServerSettings.Plex_Server)) return null;
+                if (string.IsNullOrEmpty(ServerSettings.Instance.Plex.Server)) return null;
                 if (DateTime.Now - TimeSpan.FromHours(1) >= _lastMediaCacheTime) _mediaDevice = null;
-                if (_mediaDevice != null && ServerSettings.Plex_Server == _mediaDevice.ClientIdentifier)
+                if (_mediaDevice != null && ServerSettings.Instance.Plex.Server == _mediaDevice.ClientIdentifier)
                     return _mediaDevice;
-                _mediaDevice = GetPlexServers().FirstOrDefault(s => s.ClientIdentifier == ServerSettings.Plex_Server);
+                _mediaDevice = GetPlexServers().FirstOrDefault(s => s.ClientIdentifier == ServerSettings.Instance.Plex.Server);
                 if (_mediaDevice != null) return _mediaDevice;
-                if (!ServerSettings.Plex_Server.Contains(':')) return null;
+                if (!ServerSettings.Instance.Plex.Server.Contains(':')) return null;
 
 
-                var strings = ServerSettings.Plex_Server.Split(':');
+                var strings = ServerSettings.Instance.Plex.Server.Split(':');
                 _mediaDevice = GetPlexServers().FirstOrDefault(s =>
                     s.Connection.Any(c => c.Address == strings[0] && c.Port == strings[1]));
                 if (_mediaDevice != null)
-                    ServerSettings.Plex_Server = _mediaDevice.ClientIdentifier;
+                    ServerSettings.Instance.Plex.Server = _mediaDevice.ClientIdentifier;
                 return _mediaDevice;
             }
             private set
@@ -130,11 +132,13 @@ namespace Shoko.Server.Plex
         {
             get
             {
+                if (isAuthenticated != null) return (bool)isAuthenticated;
                 try
                 {
-                    return RequestAsync("https://plex.tv/users/account.json", HttpMethod.Get,
+                    isAuthenticated = RequestAsync("https://plex.tv/users/account.json", HttpMethod.Get,
                                    AuthenticationHeaders).ConfigureAwait(false)
                                .GetAwaiter().GetResult().status == HttpStatusCode.OK;
+                    return (bool)isAuthenticated;
                 }
                 catch (Exception)
                 {
@@ -236,7 +240,16 @@ namespace Shoko.Server.Plex
 
         private MediaDevice[] GetPlexDevices()
         {
-            if (!IsAuthenticated) return new MediaDevice[0];
+            if (_plexMediaDevices != null)
+            {
+                return _plexMediaDevices;
+            }
+
+            if (!IsAuthenticated)
+            {
+                _plexMediaDevices = new MediaDevice[0];
+                return _plexMediaDevices;
+            }
             var (_, content) = RequestAsync("https://plex.tv/api/resources?includeHttps=1", HttpMethod.Get,
                 AuthenticationHeaders).Result;
             var serializer = new XmlSerializer(typeof(MediaContainer));
@@ -244,7 +257,8 @@ namespace Shoko.Server.Plex
             {
                 try
                 {
-                    return ((MediaContainer) serializer.Deserialize(reader)).Device;
+                    _plexMediaDevices = ((MediaContainer) serializer.Deserialize(reader)).Device;
+                    return _plexMediaDevices;
                 }
                 catch
                 {
@@ -264,13 +278,13 @@ namespace Shoko.Server.Plex
         {
             if (server == null)
             {
-                ServerSettings.Plex_Server = null;
+                ServerSettings.Instance.Plex.Server = null;
                 return;
             }
 
             if (!server.Provides.Split(',').Contains("server")) return; //not allowed.
 
-            ServerSettings.Plex_Server = server.ClientIdentifier;
+            ServerSettings.Instance.Plex.Server = server.ClientIdentifier;
             ServerCache = server;
         }
 
